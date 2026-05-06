@@ -117,8 +117,10 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => setUser(null);
 
+  const isMainAdmin = user?.id === 1;
+
   return (
-    <AuthContext.Provider value={{ user, users, login, registerAdmin, addStaff, updateStaff, updateUser, deleteStaff, importStaff, logout }}>
+    <AuthContext.Provider value={{ user, users, login, registerAdmin, addStaff, updateStaff, updateUser, deleteStaff, importStaff, logout, isMainAdmin }}>
       {children}
     </AuthContext.Provider>
   );

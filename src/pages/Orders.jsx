@@ -1,12 +1,14 @@
 import React, { useState, useRef } from 'react';
 import { useData } from '../context/DataContext';
-import { Search, Plus, Edit, Trash2, Download, Upload, FileDown } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { Search, Plus, Edit, Trash2, Download, Upload, FileDown, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { exportToExcel } from '../utils/excelExport';
 
 const Orders = () => {
   const navigate = useNavigate();
+  const { user, isMainAdmin } = useAuth();
   const { orders, updateOrder, deleteOrder, importOrders, branches } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -14,7 +16,9 @@ const Orders = () => {
   const [editingOrder, setEditingOrder] = useState(null);
   const fileInputRef = useRef(null);
 
-  const filteredOrders = orders.filter(order => 
+  const visibleOrders = isMainAdmin ? orders : orders.filter(o => !o.isHidden);
+
+  const filteredOrders = visibleOrders.filter(order => 
     order.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
     order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.customerPhone.includes(searchTerm)
@@ -235,6 +239,19 @@ const Orders = () => {
                   <option value="Đã hủy">Đã hủy</option>
                 </select>
               </div>
+              {isMainAdmin && (
+                <div className="input-group" style={{ marginBottom: '1rem' }}>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer text-muted font-medium">
+                    <input 
+                      type="checkbox" 
+                      checked={!!editingOrder.isHidden} 
+                      onChange={e => setEditingOrder({...editingOrder, isHidden: e.target.checked})} 
+                      style={{ accentColor: 'var(--primary)', width: '16px', height: '16px' }}
+                    />
+                    <EyeOff size={16} /> Ẩn đơn hàng này khỏi các tài khoản khác
+                  </label>
+                </div>
+              )}
               <div className="flex justify-end gap-4 mt-6">
                 <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)}>Hủy</button>
                 <button type="submit" className="btn btn-primary">Lưu thay đổi</button>

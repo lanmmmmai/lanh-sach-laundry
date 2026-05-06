@@ -31,9 +31,8 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         flexDirection: 'column',
         height: '100%'
       }}>
-        <div style={{ height: '64px', display: 'flex', alignItems: 'center', padding: '0 1.5rem', borderBottom: '1px solid var(--border-color)', gap: '0.75rem' }}>
-          <Waves size={28} color="var(--primary)" />
-          <h1 style={{ fontSize: '1.25rem', margin: 0, color: 'var(--primary)', fontWeight: '800', letterSpacing: '-0.5px' }}>GiatKy</h1>
+        <div style={{ height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--border-color)' }}>
+          <img src="/logo.png" alt="GiatKy Logo" style={{ height: '40px', objectFit: 'contain' }} />
         </div>
         <nav style={{ padding: '1.5rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', overflowY: 'auto' }}>
           {menuItems.map((item) => (

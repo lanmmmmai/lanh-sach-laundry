@@ -16,14 +16,16 @@ const StatCard = ({ title, value, icon, color }) => (
 );
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, isMainAdmin } = useAuth();
   const { orders } = useData();
   const isAdmin = user?.role === 'admin';
   
-  const totalRevenue = orders.reduce((sum, o) => sum + o.totalPrice, 0);
-  const newOrdersCount = orders.filter(o => o.status === 'Mới tạo').length;
-  const processingCount = orders.filter(o => o.status === 'Đang giặt').length;
-  const readyCount = orders.filter(o => o.status === 'Sẵn sàng giao').length;
+  const visibleOrders = isMainAdmin ? orders : orders.filter(o => !o.isHidden);
+  
+  const totalRevenue = visibleOrders.reduce((sum, o) => sum + o.totalPrice, 0);
+  const newOrdersCount = visibleOrders.filter(o => o.status === 'Mới tạo').length;
+  const processingCount = visibleOrders.filter(o => o.status === 'Đang giặt').length;
+  const readyCount = visibleOrders.filter(o => o.status === 'Sẵn sàng giao').length;
 
   return (
     <div>
@@ -50,7 +52,7 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {orders.slice(-5).reverse().map(order => (
+                {visibleOrders.slice(-5).reverse().map(order => (
                   <tr key={order.id}>
                     <td className="font-semibold">{order.id}</td>
                     <td>{order.customerName}</td>
@@ -58,7 +60,7 @@ const Dashboard = () => {
                     <td className="font-semibold">{order.totalPrice.toLocaleString()} đ</td>
                   </tr>
                 ))}
-                {orders.length === 0 && (
+                {visibleOrders.length === 0 && (
                   <tr>
                     <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>Chưa có đơn hàng nào.</td>
                   </tr>
