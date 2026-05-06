@@ -165,11 +165,16 @@ app.delete('/api/users/:id', async (req, res) => {
 app.post('/api/users/bulk', async (req, res) => {
   try {
     const users = req.body;
-    await runQuery("DELETE FROM users WHERE role = 'staff'"); // Keep admin
     for (const u of users) {
       const bIds = u.branchIds ? JSON.stringify(u.branchIds) : '[]';
-      await runQuery('INSERT INTO users (email, password, role, name, branchId, branchIds, salaryType, salaryRate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
-        [u.email, u.password, 'staff', u.name, u.branchId || null, bIds, u.salaryType || 'parttime', u.salaryRate || 0]);
+      const existing = await getQuery("SELECT id FROM users WHERE email = ? OR name = ?", [u.email, u.name]);
+      if (existing.length > 0) {
+        await runQuery('UPDATE users SET password = ?, name = ?, branchId = ?, branchIds = ?, salaryType = ?, salaryRate = ? WHERE id = ?', 
+          [u.password, u.name, u.branchId || null, bIds, u.salaryType || 'parttime', u.salaryRate || 0, existing[0].id]);
+      } else {
+        await runQuery('INSERT INTO users (email, password, role, name, branchId, branchIds, salaryType, salaryRate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
+          [u.email, u.password, 'staff', u.name, u.branchId || null, bIds, u.salaryType || 'parttime', u.salaryRate || 0]);
+      }
     }
     res.json({ success: true });
   } catch (error) { res.status(500).json({ error: error.message }); }
@@ -217,9 +222,13 @@ app.delete('/api/branches/:id', async (req, res) => {
 });
 app.post('/api/branches/bulk', async (req, res) => {
   const branches = req.body;
-  await runQuery('DELETE FROM branches'); // Replace all
   for (const b of branches) {
-    await runQuery('INSERT INTO branches (name, address) VALUES (?, ?)', [b.name, b.address]);
+    const existing = await getQuery('SELECT id FROM branches WHERE name = ?', [b.name]);
+    if (existing.length > 0) {
+      await runQuery('UPDATE branches SET address = ? WHERE id = ?', [b.address, existing[0].id]);
+    } else {
+      await runQuery('INSERT INTO branches (name, address) VALUES (?, ?)', [b.name, b.address]);
+    }
   }
   res.json({ success: true });
 });
@@ -244,9 +253,13 @@ app.delete('/api/services/:id', async (req, res) => {
 });
 app.post('/api/services/bulk', async (req, res) => {
   const services = req.body;
-  await runQuery('DELETE FROM services');
   for (const s of services) {
-    await runQuery('INSERT INTO services (name, price, unit, category) VALUES (?, ?, ?, ?)', [s.name, s.price, s.unit, s.category]);
+    const existing = await getQuery('SELECT id FROM services WHERE name = ?', [s.name]);
+    if (existing.length > 0) {
+      await runQuery('UPDATE services SET price = ?, unit = ?, category = ? WHERE id = ?', [s.price, s.unit, s.category, existing[0].id]);
+    } else {
+      await runQuery('INSERT INTO services (name, price, unit, category) VALUES (?, ?, ?, ?)', [s.name, s.price, s.unit, s.category]);
+    }
   }
   res.json({ success: true });
 });
@@ -293,7 +306,11 @@ app.post('/api/orders/bulk', async (req, res) => {
   for (const o of orders) {
     // Basic check to see if exists
     const existing = await getQuery('SELECT id FROM orders WHERE id = ?', [o.id]);
-    if (existing.length === 0) {
+    if (existing.length > 0) {
+      await runQuery(`UPDATE orders SET createdAt = ?, staff = ?, customerName = ?, customerPhone = ?, service = ?, weight = ?, pricePerKg = ?, surcharge = ?, discount = ?, totalPrice = ?, paymentStatus = ?, paymentMethod = ?, status = ?, returnDate = ?, note = ? WHERE id = ?`, 
+        [o.createdAt, o.staff, o.customerName, o.customerPhone, o.service, o.weight, o.pricePerKg, o.surcharge, o.discount, o.totalPrice, o.paymentStatus, o.paymentMethod, o.status, o.returnDate, o.note, o.id]
+      );
+    } else {
       await runQuery(`INSERT INTO orders (id, createdAt, staff, customerName, customerPhone, service, weight, pricePerKg, surcharge, discount, totalPrice, paymentStatus, paymentMethod, status, returnDate, note) 
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
         [o.id, o.createdAt, o.staff, o.customerName, o.customerPhone, o.service, o.weight, o.pricePerKg, o.surcharge, o.discount, o.totalPrice, o.paymentStatus, o.paymentMethod, o.status, o.returnDate, o.note]
