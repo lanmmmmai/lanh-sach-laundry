@@ -132,11 +132,12 @@ export const DataProvider = ({ children }) => {
 
   const importServices = async (newServices) => {
     for (const s of newServices) {
+      const { id, ...serviceData } = s;
       const { data: existing } = await supabase.from('services').select('id').eq('name', s.name).eq('adminId', adminId);
       if (existing && existing.length > 0) {
         await supabase.from('services').update({ price: s.price, unit: s.unit, category: s.category }).eq('id', existing[0].id);
       } else {
-        await supabase.from('services').insert([{ ...s, adminId }]);
+        await supabase.from('services').insert([{ ...serviceData, adminId }]);
       }
     }
     const { data } = await supabase.from('services').select('*').eq('adminId', adminId);
@@ -145,11 +146,12 @@ export const DataProvider = ({ children }) => {
 
   const importBranches = async (newBranches) => {
     for (const b of newBranches) {
+      const { id, ...branchData } = b;
       const { data: existing } = await supabase.from('branches').select('id').eq('name', b.name).eq('adminId', adminId);
       if (existing && existing.length > 0) {
         await supabase.from('branches').update({ address: b.address }).eq('id', existing[0].id);
       } else {
-        await supabase.from('branches').insert([{ ...b, adminId }]);
+        await supabase.from('branches').insert([{ ...branchData, adminId }]);
       }
     }
     const { data } = await supabase.from('branches').select('*').eq('adminId', adminId);
