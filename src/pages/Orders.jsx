@@ -196,6 +196,9 @@ const Orders = () => {
                   <span className={`badge ${order.status === 'Đã giao khách' ? 'badge-success' : order.status === 'Mới tạo' ? 'badge-primary' : 'badge-warning'}`}>
                     {order.status}
                   </span>
+                  {order.returnDate && order.status !== 'Đã giao khách' && (
+                    <div className="text-xs text-muted mt-1">Trả: {new Date(order.returnDate).toLocaleDateString('vi-VN')}</div>
+                  )}
                 </td>
                 <td>
                   <div className="flex gap-2">
@@ -222,14 +225,43 @@ const Orders = () => {
             <form onSubmit={handleSaveOrder}>
               <div className="input-group">
                 <label className="input-label">Trạng thái thanh toán</label>
-                <select className="input-field" value={editingOrder.paymentStatus} onChange={e => setEditingOrder({...editingOrder, paymentStatus: e.target.value})}>
+                <select className="input-field" value={editingOrder.paymentStatus} onChange={e => {
+                  const newStatus = e.target.value;
+                  setEditingOrder({
+                    ...editingOrder, 
+                    paymentStatus: newStatus,
+                    paymentMethod: newStatus === 'Đã thanh toán' ? (editingOrder.paymentMethod && editingOrder.paymentMethod !== '-' ? editingOrder.paymentMethod : 'Tiền mặt') : '-'
+                  });
+                }}>
                   <option value="Chưa thanh toán">Chưa thanh toán</option>
                   <option value="Đã thanh toán">Đã thanh toán</option>
                 </select>
               </div>
+              
+              {editingOrder.paymentStatus === 'Đã thanh toán' && (
+                <div className="input-group mb-4">
+                  <label className="input-label">Phương thức thanh toán</label>
+                  <div className="flex gap-4 mt-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm">
+                      <input type="radio" name="editPaymentMethod" value="Tiền mặt" checked={editingOrder.paymentMethod === 'Tiền mặt'} onChange={e => setEditingOrder({...editingOrder, paymentMethod: e.target.value})} style={{ accentColor: 'var(--primary)' }} /> Tiền mặt
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-sm">
+                      <input type="radio" name="editPaymentMethod" value="Chuyển khoản" checked={editingOrder.paymentMethod === 'Chuyển khoản'} onChange={e => setEditingOrder({...editingOrder, paymentMethod: e.target.value})} style={{ accentColor: 'var(--primary)' }} /> Chuyển khoản
+                    </label>
+                  </div>
+                </div>
+              )}
               <div className="input-group">
                 <label className="input-label">Trạng thái xử lý</label>
-                <select className="input-field" value={editingOrder.status} onChange={e => setEditingOrder({...editingOrder, status: e.target.value})}>
+                <select className="input-field" value={editingOrder.status} onChange={e => {
+                  const newStatus = e.target.value;
+                  const updates = { status: newStatus };
+                  if (newStatus === 'Đã giao khách' && editingOrder.paymentStatus === 'Chưa thanh toán') {
+                    updates.paymentStatus = 'Đã thanh toán';
+                    updates.paymentMethod = 'Tiền mặt'; // Default to cash
+                  }
+                  setEditingOrder({ ...editingOrder, ...updates });
+                }}>
                   <option value="Mới tạo">Mới tạo</option>
                   <option value="Đã nhận đồ">Đã nhận đồ</option>
                   <option value="Đang giặt">Đang giặt</option>

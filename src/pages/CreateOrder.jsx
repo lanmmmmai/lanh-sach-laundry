@@ -24,6 +24,13 @@ const CreateOrder = () => {
   const [discount, setDiscount] = useState(0);
   const [note, setNote] = useState('');
   
+  const tzOffset = new Date().getTimezoneOffset() * 60000;
+  const today = new Date(Date.now() - tzOffset).toISOString().slice(0, 16);
+  const tomorrow = new Date(Date.now() + 86400000 - tzOffset).toISOString().slice(0, 16);
+  
+  const [receiveDate, setReceiveDate] = useState(today);
+  const [returnDate, setReturnDate] = useState(tomorrow);
+  
   const [isPaid, setIsPaid] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('Tiền mặt');
   
@@ -73,7 +80,7 @@ const CreateOrder = () => {
     const selectedBranch = branches.find(b => b.id === parseInt(branchId));
 
     addOrder({
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(receiveDate).toISOString(),
       staff: user?.name,
       branchId: parseInt(branchId),
       customerName: name,
@@ -87,7 +94,7 @@ const CreateOrder = () => {
       paymentStatus: isPaid ? 'Đã thanh toán' : 'Chưa thanh toán',
       paymentMethod: isPaid ? paymentMethod : '-',
       status: 'Mới tạo',
-      returnDate: new Date(Date.now() + 86400000).toISOString(), // +1 day
+      returnDate: new Date(returnDate).toISOString(),
       note
     });
     
@@ -135,7 +142,18 @@ const CreateOrder = () => {
           </div>
 
           <div className="card">
-            <h3 className="mb-4">2. Dịch vụ & Tính tiền</h3>
+            <h3 className="mb-4">2. Dịch vụ & Thời gian</h3>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="input-group mb-0">
+                <label className="input-label">Ngày nhận</label>
+                <input type="datetime-local" className="input-field" value={receiveDate} onChange={e => setReceiveDate(e.target.value)} />
+              </div>
+              <div className="input-group mb-0">
+                <label className="input-label">Ngày hẹn trả</label>
+                <input type="datetime-local" className="input-field" value={returnDate} onChange={e => setReturnDate(e.target.value)} />
+              </div>
+            </div>
+            
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div className="input-group mb-0">
                 <label className="input-label">Chọn dịch vụ</label>
