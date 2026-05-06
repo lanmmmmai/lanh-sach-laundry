@@ -25,8 +25,8 @@ const Login = () => {
       <div className="card" style={{ width: '100%', maxWidth: '400px' }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <Waves size={48} color="var(--primary)" />
-          <h2>Đăng nhập</h2>
-          <p className="text-muted">Hệ thống quản lý tiệm giặt ủi</p>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.5px', marginBottom: '0.25rem' }}>GiatKy</h2>
+          <p className="text-muted">Nền tảng Quản lý Tiệm Giặt ủi Toàn diện</p>
         </div>
         {error && <div style={{ color: 'var(--danger)', marginBottom: '1rem', fontSize: '0.875rem', backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>{error}</div>}
         <form onSubmit={handleLogin}>
