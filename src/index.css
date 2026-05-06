@@ -99,6 +99,7 @@ h3 { font-size: 1.125rem; font-weight: 600; color: var(--text-main); margin-bott
 
 /* Utilities */
 .flex { display: flex; }
+.flex-col { flex-direction: column; }
 .items-center { align-items: center; }
 .justify-between { justify-content: space-between; }
 .justify-end { justify-content: flex-end; }
