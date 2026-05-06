@@ -16,6 +16,9 @@ const Orders = () => {
   const [editingOrder, setEditingOrder] = useState(null);
   const fileInputRef = useRef(null);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 6;
+  
   const visibleOrders = isMainAdmin ? orders : orders.filter(o => !o.isHidden);
 
   const filteredOrders = visibleOrders.filter(order => 
@@ -23,6 +26,15 @@ const Orders = () => {
     order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.customerPhone.includes(searchTerm)
   );
+
+  const totalPages = Math.ceil(filteredOrders.length / rowsPerPage);
+  const paginatedOrders = filteredOrders.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
 
   const handleExport = () => {
     const exportData = filteredOrders.map(o => ({
@@ -168,7 +180,7 @@ const Orders = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredOrders.map(order => {
+            {paginatedOrders.map(order => {
               const branchName = order.branchId ? (branches?.find(b => b.id === order.branchId)?.name || 'Chưa phân bổ') : 'Chưa phân bổ';
               return (
               <tr key={order.id}>
@@ -209,13 +221,23 @@ const Orders = () => {
               </tr>
               );
             })}
-            {filteredOrders.length === 0 && (
+            {paginatedOrders.length === 0 && (
               <tr>
-                <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>Chưa có đơn hàng nào.</td>
+                <td colSpan="9" style={{ textAlign: 'center', padding: '2rem' }}>Chưa có đơn hàng nào.</td>
               </tr>
             )}
           </tbody>
         </table>
+        
+        {totalPages > 1 && (
+          <div className="flex justify-between items-center" style={{ padding: '1rem', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)' }}>
+            <span className="text-sm text-muted">Trang {currentPage} / {totalPages} (Tổng số {filteredOrders.length} đơn)</span>
+            <div className="flex gap-2">
+              <button className="btn btn-outline" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} style={{ padding: '0.5rem 1rem' }}>Trước</button>
+              <button className="btn btn-outline" onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} style={{ padding: '0.5rem 1rem' }}>Sau</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {showModal && editingOrder && (

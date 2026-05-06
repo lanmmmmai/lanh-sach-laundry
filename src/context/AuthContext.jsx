@@ -88,10 +88,11 @@ export const AuthProvider = ({ children }) => {
 
   const addStaff = async (staffData) => {
     try {
+      const adminId = user?.adminId || user?.id || 1;
       const res = await fetch('http://localhost:3001/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...staffData, role: 'staff' })
+        body: JSON.stringify({ ...staffData, role: 'staff', adminId })
       });
       const data = await res.json();
       if (!res.ok) return false;
@@ -137,7 +138,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const importStaff = async (newStaff) => {
-    const r = await fetch('http://localhost:3001/api/users/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newStaff) });
+    const adminId = user?.adminId || user?.id || 1;
+    const mappedStaff = newStaff.map(s => ({ ...s, adminId }));
+    const r = await fetch('http://localhost:3001/api/users/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(mappedStaff) });
     if(r.ok) {
       const res = await fetch('http://localhost:3001/api/users');
       const data = await res.json();
