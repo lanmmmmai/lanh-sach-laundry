@@ -5,7 +5,7 @@ const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
   const { user } = useAuth();
-  const adminId = user?.role === 'admin' ? user.id : (user?.adminId || 1); // fallback to 1
+  const adminId = user?.adminId || user?.id || 1; // Always use adminId if it exists (which is the workspace owner's ID)
 
   const [branches, setBranches] = useState([]);
   const [orders, setOrders] = useState([]);

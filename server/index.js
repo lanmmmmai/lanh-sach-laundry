@@ -165,7 +165,7 @@ app.post('/api/users', async (req, res) => {
       [email, password, role, name, branchId, bIds, salaryType || 'parttime', salaryRate || 0, adminIdToInsert]);
     
     let finalAdminId = adminIdToInsert;
-    if (role === 'admin') {
+    if (role === 'admin' && !adminIdToInsert) {
       finalAdminId = result.lastID;
       await runQuery('UPDATE users SET adminId = ? WHERE id = ?', [finalAdminId, result.lastID]);
     }
