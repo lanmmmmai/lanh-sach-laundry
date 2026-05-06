@@ -7,12 +7,14 @@ export const DataProvider = ({ children }) => {
   const [orders, setOrders] = useState([]);
   const [services, setServices] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [shifts, setShifts] = useState([]);
 
   useEffect(() => {
     fetch('http://localhost:3001/api/branches').then(r => r.json()).then(setBranches).catch(console.error);
     fetch('http://localhost:3001/api/orders').then(r => r.json()).then(setOrders).catch(console.error);
     fetch('http://localhost:3001/api/services').then(r => r.json()).then(setServices).catch(console.error);
     fetch('http://localhost:3001/api/customers').then(r => r.json()).then(setCustomers).catch(console.error);
+    fetch('http://localhost:3001/api/shifts').then(r => r.json()).then(setShifts).catch(console.error);
   }, []);
 
   const addCustomer = async (customer) => {
@@ -94,12 +96,27 @@ export const DataProvider = ({ children }) => {
     }
   };
 
+  const addShift = async (shift) => {
+    const r = await fetch('http://localhost:3001/api/shifts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(shift) });
+    const data = await r.json();
+    setShifts([...shifts, data]);
+  };
+  const updateShift = async (id, updatedShift) => {
+    await fetch(`http://localhost:3001/api/shifts/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedShift) });
+    setShifts(shifts.map(s => s.id === id ? { ...s, ...updatedShift } : s));
+  };
+  const deleteShift = async (id) => {
+    await fetch(`http://localhost:3001/api/shifts/${id}`, { method: 'DELETE' });
+    setShifts(shifts.filter(s => s.id !== id));
+  };
+
   return (
     <DataContext.Provider value={{ 
       branches, addBranch, updateBranch, deleteBranch, importBranches,
       orders, addOrder, updateOrder, deleteOrder, importOrders,
       services, addService, updateService, deleteService, importServices,
-      customers, addCustomer
+      customers, addCustomer,
+      shifts, addShift, updateShift, deleteShift
     }}>
       {children}
     </DataContext.Provider>

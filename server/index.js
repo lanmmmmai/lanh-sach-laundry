@@ -35,6 +35,23 @@ const db = new sqlite3.Database(path.join(dbDir, 'database.sqlite'), (err) => {
         branchId INTEGER
       )`);
 
+      // Add new columns if they don't exist
+      db.run("ALTER TABLE users ADD COLUMN branchIds TEXT", (err) => {});
+      db.run("ALTER TABLE users ADD COLUMN salaryType TEXT", (err) => {});
+      db.run("ALTER TABLE users ADD COLUMN salaryRate INTEGER", (err) => {});
+
+      db.run(`CREATE TABLE IF NOT EXISTS shifts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        staffId INTEGER,
+        branchId INTEGER,
+        date TEXT,
+        startTime TEXT,
+        endTime TEXT,
+        actualStartTime TEXT,
+        actualEndTime TEXT,
+        status TEXT
+      )`);
+
       db.run(`CREATE TABLE IF NOT EXISTS branches (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT,
@@ -76,8 +93,8 @@ const db = new sqlite3.Database(path.join(dbDir, 'database.sqlite'), (err) => {
 
       db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
         if (row && row.count === 0) {
-          db.run('INSERT INTO users (email, password, role, name, branchId) VALUES (?, ?, ?, ?, ?)', 
-            ['admin@test.com', '123', 'admin', 'Chủ Tiệm', null]
+          db.run('INSERT INTO users (email, password, role, name, branchIds, salaryType) VALUES (?, ?, ?, ?, ?, ?)', 
+            ['admin@test.com', '123', 'admin', 'Chủ Tiệm', '[]', 'fulltime']
           );
         }
       });
@@ -117,19 +134,23 @@ app.post('/api/login', async (req, res) => {
 
 app.post('/api/users', async (req, res) => {
   try {
-    const { email, password, role, name, branchId } = req.body;
+    const { email, password, role, name, branchId, branchIds, salaryType, salaryRate } = req.body;
     const existing = await getQuery('SELECT * FROM users WHERE email = ?', [email]);
     if (existing.length > 0) return res.status(400).json({ error: 'Email đã tồn tại' });
     
-    const result = await runQuery('INSERT INTO users (email, password, role, name, branchId) VALUES (?, ?, ?, ?, ?)', [email, password, role, name, branchId]);
-    res.json({ id: result.lastID, email, password, role, name, branchId });
+    const bIds = branchIds ? JSON.stringify(branchIds) : '[]';
+    const result = await runQuery('INSERT INTO users (email, password, role, name, branchId, branchIds, salaryType, salaryRate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
+      [email, password, role, name, branchId, bIds, salaryType || 'parttime', salaryRate || 0]);
+    res.json({ id: result.lastID, email, password, role, name, branchId, branchIds: JSON.parse(bIds), salaryType, salaryRate });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
 app.put('/api/users/:id', async (req, res) => {
   try {
-    const { password, name, branchId } = req.body;
-    await runQuery('UPDATE users SET password = ?, name = ?, branchId = ? WHERE id = ?', [password, name, branchId, req.params.id]);
+    const { password, name, branchId, branchIds, salaryType, salaryRate } = req.body;
+    const bIds = branchIds ? JSON.stringify(branchIds) : '[]';
+    await runQuery('UPDATE users SET password = ?, name = ?, branchId = ?, branchIds = ?, salaryType = ?, salaryRate = ? WHERE id = ?', 
+      [password, name, branchId, bIds, salaryType, salaryRate, req.params.id]);
     res.json({ success: true });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
@@ -140,15 +161,40 @@ app.delete('/api/users/:id', async (req, res) => {
     res.json({ success: true });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
+
 app.post('/api/users/bulk', async (req, res) => {
   try {
     const users = req.body;
     await runQuery("DELETE FROM users WHERE role = 'staff'"); // Keep admin
     for (const u of users) {
-      await runQuery('INSERT INTO users (email, password, role, name, branchId) VALUES (?, ?, ?, ?, ?)', [u.email, u.password, 'staff', u.name, u.branchId || null]);
+      const bIds = u.branchIds ? JSON.stringify(u.branchIds) : '[]';
+      await runQuery('INSERT INTO users (email, password, role, name, branchId, branchIds, salaryType, salaryRate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
+        [u.email, u.password, 'staff', u.name, u.branchId || null, bIds, u.salaryType || 'parttime', u.salaryRate || 0]);
     }
     res.json({ success: true });
   } catch (error) { res.status(500).json({ error: error.message }); }
+});
+
+// SHIFTS
+app.get('/api/shifts', async (req, res) => {
+  const data = await getQuery('SELECT * FROM shifts');
+  res.json(data);
+});
+app.post('/api/shifts', async (req, res) => {
+  const { staffId, branchId, date, startTime, endTime, status } = req.body;
+  const result = await runQuery('INSERT INTO shifts (staffId, branchId, date, startTime, endTime, status) VALUES (?, ?, ?, ?, ?, ?)', 
+    [staffId, branchId, date, startTime, endTime, status || 'Pending']);
+  res.json({ id: result.lastID, staffId, branchId, date, startTime, endTime, status });
+});
+app.put('/api/shifts/:id', async (req, res) => {
+  const { actualStartTime, actualEndTime, status } = req.body;
+  await runQuery('UPDATE shifts SET actualStartTime = ?, actualEndTime = ?, status = ? WHERE id = ?', 
+    [actualStartTime, actualEndTime, status, req.params.id]);
+  res.json({ success: true });
+});
+app.delete('/api/shifts/:id', async (req, res) => {
+  await runQuery('DELETE FROM shifts WHERE id = ?', [req.params.id]);
+  res.json({ success: true });
 });
 
 app.get('/api/branches', async (req, res) => {

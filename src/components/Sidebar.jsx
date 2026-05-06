@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, ShoppingCart, PlusCircle, Users, Settings, Waves, Building2, List } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, PlusCircle, Users, Settings, Waves, Building2, List, Calendar } from 'lucide-react';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const { user } = useAuth();
@@ -11,6 +11,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     { path: '/', name: 'Tổng quan', icon: <LayoutDashboard size={20} /> },
     { path: '/orders', name: 'Đơn hàng', icon: <ShoppingCart size={20} /> },
     { path: '/create-order', name: 'Tạo đơn mới', icon: <PlusCircle size={20} /> },
+    { path: '/timesheet', name: isAdmin ? 'Chấm công & Lương' : 'Chấm công', icon: <Calendar size={20} /> },
     ...(isAdmin ? [
       { path: '/services', name: 'Dịch vụ', icon: <List size={20} /> },
       { path: '/branches', name: 'Cơ sở', icon: <Building2 size={20} /> },

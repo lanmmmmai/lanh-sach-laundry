@@ -56,12 +56,12 @@ export const AuthProvider = ({ children }) => {
     } catch (e) { return false; }
   };
 
-  const addStaff = async (email, password, name, branchId) => {
+  const addStaff = async (staffData) => {
     try {
       const res = await fetch('http://localhost:3001/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, role: 'staff', name, branchId })
+        body: JSON.stringify({ ...staffData, role: 'staff' })
       });
       const data = await res.json();
       if (!res.ok) return false;
@@ -78,7 +78,7 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify(updatedData)
       });
       if (res.ok) {
-        setUsers(users.map(u => u.id === id ? { ...u, ...updatedData, branchId: parseInt(updatedData.branchId) } : u));
+        setUsers(users.map(u => u.id === id ? { ...u, ...updatedData } : u));
       }
     } catch (e) {}
   };

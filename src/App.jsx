@@ -12,6 +12,7 @@ import StaffManagement from './pages/StaffManagement';
 import Branches from './pages/Branches';
 import Services from './pages/Services';
 import Settings from './pages/Settings';
+import Timesheet from './pages/Timesheet';
 
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
   const { user } = useAuth();
@@ -32,6 +33,7 @@ const AppRoutes = () => {
         <Route path="services" element={<ProtectedRoute requireAdmin={true}><Services /></ProtectedRoute>} />
         <Route path="staff" element={<ProtectedRoute requireAdmin={true}><StaffManagement /></ProtectedRoute>} />
         <Route path="branches" element={<ProtectedRoute requireAdmin={true}><Branches /></ProtectedRoute>} />
+        <Route path="timesheet" element={<Timesheet />} />
         <Route path="settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

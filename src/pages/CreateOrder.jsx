@@ -5,9 +5,12 @@ import { Save, Printer, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const CreateOrder = () => {
-  const { services, addOrder, customers, addCustomer } = useData();
+  const { services, addOrder, customers, addCustomer, shifts, branches } = useData();
   const { user } = useAuth();
   const navigate = useNavigate();
+  
+  const currentShift = shifts.find(s => s.staffId === user?.id && s.status === 'CheckedIn');
+  const currentBranch = currentShift ? branches.find(b => b.id === currentShift.branchId) : null;
   
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
@@ -63,7 +66,7 @@ const CreateOrder = () => {
     
     addOrder({
       createdAt: new Date().toISOString(),
-      staff: user?.name || 'Unknown',
+      staff: user?.name + (currentBranch ? ` (${currentBranch.name})` : ''),
       customerName: name,
       customerPhone: phone,
       service: selectedService.name,
@@ -151,14 +154,24 @@ const CreateOrder = () => {
           <div className="card" style={{ position: 'sticky', top: '2rem' }}>
             <h3 className="mb-4">Tóm tắt đơn hàng</h3>
             
-            <div className="flex justify-between mb-2 text-sm">
-              <span className="text-muted">Nhân viên trực:</span>
-              <span className="font-semibold text-primary">{user?.name}</span>
-            </div>
-            <div className="flex justify-between mb-2 text-sm">
-              <span className="text-muted">Khách hàng:</span>
-              <span className="font-semibold">{name || '---'}</span>
-            </div>
+    <div className="flex justify-between mb-2 text-sm">
+      <span className="text-muted">Nhân viên trực:</span>
+      <span className="font-semibold text-primary">{user?.name}</span>
+    </div>
+    {user?.role !== 'admin' && (
+      <div className="flex justify-between mb-2 text-sm">
+        <span className="text-muted">Ca trực (Cơ sở):</span>
+        {currentShift ? (
+          <span className="font-semibold text-success">{currentBranch?.name}</span>
+        ) : (
+          <span className="font-semibold text-danger">Chưa Check-in ca!</span>
+        )}
+      </div>
+    )}
+    <div className="flex justify-between mb-2 text-sm">
+      <span className="text-muted">Khách hàng:</span>
+      <span className="font-semibold">{name || '---'}</span>
+    </div>
             <div className="flex justify-between mb-2 text-sm">
               <span className="text-muted">Dịch vụ:</span>
               <span className="font-semibold">{selectedService?.name}</span>
