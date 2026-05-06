@@ -46,31 +46,35 @@ export const AuthProvider = ({ children }) => {
         .select('*')
         .eq('email', email)
         .eq('password', password)
-        .single();
+        .maybeSingle();
         
-      if (data && !error) {
+      if (error) return { success: false, message: error.message };
+
+      if (data) {
         setUser({
           ...data,
           branchIds: typeof data.branchIds === 'string' ? JSON.parse(data.branchIds) : (data.branchIds || [])
         });
-        return true;
+        return { success: true };
       }
-      return false;
-    } catch (e) { return false; }
+      return { success: false, message: 'Sai email hoặc mật khẩu' };
+    } catch (e) { return { success: false, message: e.message }; }
   };
 
   const registerAdmin = async (email, password, name) => {
     try {
-      const { data: existing } = await supabase.from('users').select('id').eq('email', email);
-      if (existing && existing.length > 0) return false;
+      const { data: existing, error: searchError } = await supabase.from('users').select('id').eq('email', email);
+      if (searchError) return { success: false, message: searchError.message };
+      if (existing && existing.length > 0) return { success: false, message: 'Email này đã được sử dụng!' };
 
       const { data, error } = await supabase
         .from('users')
         .insert([{ email, password, role: 'admin', name, branchIds: '[]', salaryType: 'parttime', salaryRate: 0 }])
         .select()
-        .single();
+        .maybeSingle();
         
-      if (error || !data) return false;
+      if (error) return { success: false, message: error.message };
+      if (!data) return { success: false, message: 'Lỗi không xác định khi tạo tài khoản' };
       
       await supabase.from('users').update({ adminId: data.id }).eq('id', data.id);
       data.adminId = data.id;
@@ -78,8 +82,8 @@ export const AuthProvider = ({ children }) => {
       
       setUsers([...users, data]);
       setUser(data);
-      return true;
-    } catch (e) { return false; }
+      return { success: true };
+    } catch (e) { return { success: false, message: e.message }; }
   };
 
   const addSubAdmin = async (email, password, name) => {
@@ -89,7 +93,7 @@ export const AuthProvider = ({ children }) => {
         .from('users')
         .insert([{ email, password, role: 'admin', name, adminId, branchIds: '[]', salaryType: 'parttime', salaryRate: 0 }])
         .select()
-        .single();
+        .maybeSingle();
         
       if (error || !data) return false;
       data.branchIds = [];
@@ -104,7 +108,7 @@ export const AuthProvider = ({ children }) => {
         .from('users')
         .insert([{ email, password, role: 'admin', name, branchIds: '[]', salaryType: 'parttime', salaryRate: 0 }])
         .select()
-        .single();
+        .maybeSingle();
         
       if (error || !data) return false;
       await supabase.from('users').update({ adminId: data.id }).eq('id', data.id);
@@ -127,7 +131,7 @@ export const AuthProvider = ({ children }) => {
           salaryRate: staffData.salaryRate || 0
         }])
         .select()
-        .single();
+        .maybeSingle();
         
       if (error || !data) return false;
       data.branchIds = staffData.branchIds || [];

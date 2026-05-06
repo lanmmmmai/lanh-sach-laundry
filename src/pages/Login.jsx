@@ -12,11 +12,11 @@ const Login = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const success = await login(email, password);
-    if (success) {
+    const result = await login(email, password);
+    if (result && result.success) {
       navigate('/');
     } else {
-      setError('Email hoặc mật khẩu không đúng.');
+      setError(result?.message || 'Email hoặc mật khẩu không đúng.');
     }
   };
 

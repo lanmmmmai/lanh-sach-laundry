@@ -49,7 +49,7 @@ export const DataProvider = ({ children }) => {
   }, [user, adminId]);
 
   const addShiftTemplate = async (template) => {
-    const { data, error } = await supabase.from('shift_templates').insert([{ ...template, adminId }]).select().single();
+    const { data, error } = await supabase.from('shift_templates').insert([{ ...template, adminId }]).select().maybeSingle();
     if (!error && data) {
       setShiftTemplates([...shiftTemplates, data]);
       addNotification('Hệ thống đã được cập nhật (Thêm ca làm việc)');
@@ -66,13 +66,13 @@ export const DataProvider = ({ children }) => {
 
   const addCustomer = async (customer) => {
     if (!customers.find(c => c.phone === customer.phone)) {
-      const { data, error } = await supabase.from('customers').insert([{ ...customer, adminId }]).select().single();
+      const { data, error } = await supabase.from('customers').insert([{ ...customer, adminId }]).select().maybeSingle();
       if (!error && data) setCustomers([...customers, data]);
     }
   };
 
   const addBranch = async (branch) => {
-    const { data, error } = await supabase.from('branches').insert([{ ...branch, adminId }]).select().single();
+    const { data, error } = await supabase.from('branches').insert([{ ...branch, adminId }]).select().maybeSingle();
     if (!error && data) setBranches([...branches, data]);
   };
 
@@ -113,7 +113,7 @@ export const DataProvider = ({ children }) => {
   };
 
   const addService = async (service) => {
-    const { data, error } = await supabase.from('services').insert([{ ...service, adminId }]).select().single();
+    const { data, error } = await supabase.from('services').insert([{ ...service, adminId }]).select().maybeSingle();
     if (!error && data) setServices([...services, data]);
   };
 
@@ -171,7 +171,7 @@ export const DataProvider = ({ children }) => {
   };
 
   const addShift = async (shift) => {
-    const { data, error } = await supabase.from('shifts').insert([{ ...shift, adminId, status: shift.status || 'Pending', shiftName: shift.shiftName || '' }]).select().single();
+    const { data, error } = await supabase.from('shifts').insert([{ ...shift, adminId, status: shift.status || 'Pending', shiftName: shift.shiftName || '' }]).select().maybeSingle();
     if (!error && data) setShifts([...shifts, data]);
   };
 

@@ -13,11 +13,11 @@ const Register = () => {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    const success = await registerAdmin(email, password, name);
-    if (success) {
+    const result = await registerAdmin(email, password, name);
+    if (result && result.success) {
       navigate('/');
     } else {
-      setError('Email này đã được sử dụng!');
+      setError(result?.message || 'Email này đã được sử dụng!');
     }
   };
 
