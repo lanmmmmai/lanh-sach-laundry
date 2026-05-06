@@ -98,8 +98,11 @@ const db = new sqlite3.Database(path.join(dbDir, 'database.sqlite'), (err) => {
         paymentMethod TEXT,
         status TEXT,
         returnDate TEXT,
-        note TEXT
+        note TEXT,
+        branchId INTEGER
       )`);
+
+      db.run("ALTER TABLE orders ADD COLUMN branchId INTEGER", (err) => {});
 
       db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
         if (row && row.count === 0) {
@@ -310,16 +313,16 @@ app.get('/api/orders', async (req, res) => {
 });
 app.post('/api/orders', async (req, res) => {
   const o = req.body;
-  await runQuery(`INSERT INTO orders (id, createdAt, staff, customerName, customerPhone, service, weight, pricePerKg, surcharge, discount, totalPrice, paymentStatus, paymentMethod, status, returnDate, note) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-    [o.id, o.createdAt, o.staff, o.customerName, o.customerPhone, o.service, o.weight, o.pricePerKg, o.surcharge, o.discount, o.totalPrice, o.paymentStatus, o.paymentMethod, o.status, o.returnDate, o.note]
+  await runQuery(`INSERT INTO orders (id, createdAt, staff, customerName, customerPhone, service, weight, pricePerKg, surcharge, discount, totalPrice, paymentStatus, paymentMethod, status, returnDate, note, branchId) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+    [o.id, o.createdAt, o.staff, o.customerName, o.customerPhone, o.service, o.weight, o.pricePerKg, o.surcharge, o.discount, o.totalPrice, o.paymentStatus, o.paymentMethod, o.status, o.returnDate, o.note, o.branchId || null]
   );
   res.json(o);
 });
 app.put('/api/orders/:id', async (req, res) => {
   const o = req.body;
-  await runQuery(`UPDATE orders SET status = ?, paymentStatus = ?, paymentMethod = ? WHERE id = ?`, 
-    [o.status, o.paymentStatus, o.paymentMethod, req.params.id]
+  await runQuery(`UPDATE orders SET status = ?, paymentStatus = ?, paymentMethod = ?, branchId = ? WHERE id = ?`, 
+    [o.status, o.paymentStatus, o.paymentMethod, o.branchId || null, req.params.id]
   );
   res.json({ success: true });
 });
@@ -333,13 +336,13 @@ app.post('/api/orders/bulk', async (req, res) => {
     // Basic check to see if exists
     const existing = await getQuery('SELECT id FROM orders WHERE id = ?', [o.id]);
     if (existing.length > 0) {
-      await runQuery(`UPDATE orders SET createdAt = ?, staff = ?, customerName = ?, customerPhone = ?, service = ?, weight = ?, pricePerKg = ?, surcharge = ?, discount = ?, totalPrice = ?, paymentStatus = ?, paymentMethod = ?, status = ?, returnDate = ?, note = ? WHERE id = ?`, 
-        [o.createdAt, o.staff, o.customerName, o.customerPhone, o.service, o.weight, o.pricePerKg, o.surcharge, o.discount, o.totalPrice, o.paymentStatus, o.paymentMethod, o.status, o.returnDate, o.note, o.id]
+      await runQuery(`UPDATE orders SET createdAt = ?, staff = ?, customerName = ?, customerPhone = ?, service = ?, weight = ?, pricePerKg = ?, surcharge = ?, discount = ?, totalPrice = ?, paymentStatus = ?, paymentMethod = ?, status = ?, returnDate = ?, note = ?, branchId = ? WHERE id = ?`, 
+        [o.createdAt, o.staff, o.customerName, o.customerPhone, o.service, o.weight, o.pricePerKg, o.surcharge, o.discount, o.totalPrice, o.paymentStatus, o.paymentMethod, o.status, o.returnDate, o.note, o.branchId || null, o.id]
       );
     } else {
-      await runQuery(`INSERT INTO orders (id, createdAt, staff, customerName, customerPhone, service, weight, pricePerKg, surcharge, discount, totalPrice, paymentStatus, paymentMethod, status, returnDate, note) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-        [o.id, o.createdAt, o.staff, o.customerName, o.customerPhone, o.service, o.weight, o.pricePerKg, o.surcharge, o.discount, o.totalPrice, o.paymentStatus, o.paymentMethod, o.status, o.returnDate, o.note]
+      await runQuery(`INSERT INTO orders (id, createdAt, staff, customerName, customerPhone, service, weight, pricePerKg, surcharge, discount, totalPrice, paymentStatus, paymentMethod, status, returnDate, note, branchId) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+        [o.id, o.createdAt, o.staff, o.customerName, o.customerPhone, o.service, o.weight, o.pricePerKg, o.surcharge, o.discount, o.totalPrice, o.paymentStatus, o.paymentMethod, o.status, o.returnDate, o.note, o.branchId || null]
       );
     }
   }

@@ -12,6 +12,8 @@ const CreateOrder = () => {
   const currentShift = shifts.find(s => s.staffId === user?.id && s.status === 'CheckedIn');
   const currentBranch = currentShift ? branches.find(b => b.id === currentShift.branchId) : null;
   
+  const [branchId, setBranchId] = useState(currentBranch ? currentBranch.id : (branches.length > 0 ? branches[0].id : ''));
+
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [isExisting, setIsExisting] = useState(false);
@@ -58,15 +60,22 @@ const CreateOrder = () => {
       alert("Vui lòng nhập tên, SĐT khách hàng và chọn dịch vụ!");
       return;
     }
+    if (!branchId) {
+      alert("Vui lòng chọn cơ sở!");
+      return;
+    }
     
     // Tự động lưu khách hàng nếu chưa có khi tạo đơn (tùy chọn)
     if (!isExisting) {
       addCustomer({ phone, name });
     }
     
+    const selectedBranch = branches.find(b => b.id === parseInt(branchId));
+
     addOrder({
       createdAt: new Date().toISOString(),
-      staff: user?.name + (currentBranch ? ` (${currentBranch.name})` : ''),
+      staff: user?.name,
+      branchId: parseInt(branchId),
       customerName: name,
       customerPhone: phone,
       service: selectedService.name,
@@ -93,7 +102,7 @@ const CreateOrder = () => {
         <div className="col-span-2 flex flex-col gap-6" style={{ gridColumn: 'span 2' }}>
           <div className="card">
             <h3 className="flex items-center justify-between mb-4">
-              <span>1. Thông tin khách hàng</span>
+              <span>1. Thông tin khách hàng & Cơ sở</span>
               {phone && !isExisting && (
                 <button className="btn btn-outline" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--primary)', borderColor: 'var(--primary)' }} onClick={handleAddCustomer}>
                   <UserPlus size={14} /> Thêm khách hàng
@@ -103,7 +112,17 @@ const CreateOrder = () => {
                 <span className="badge badge-success text-xs">Khách hàng cũ</span>
               )}
             </h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="input-group mb-0">
+                <label className="input-label">Cơ sở tiếp nhận</label>
+                <select className="input-field" value={branchId} onChange={e => setBranchId(e.target.value)}>
+                  {user?.role === 'admin' ? (
+                    branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)
+                  ) : (
+                    currentBranch ? <option value={currentBranch.id}>{currentBranch.name}</option> : <option value="">-- Chưa check-in --</option>
+                  )}
+                </select>
+              </div>
               <div className="input-group mb-0">
                 <label className="input-label">Số điện thoại</label>
                 <input type="text" className="input-field" placeholder="Nhập SĐT để tìm" value={phone} onChange={handlePhoneChange} />
@@ -154,24 +173,18 @@ const CreateOrder = () => {
           <div className="card" style={{ position: 'sticky', top: '2rem' }}>
             <h3 className="mb-4">Tóm tắt đơn hàng</h3>
             
-    <div className="flex justify-between mb-2 text-sm">
-      <span className="text-muted">Nhân viên trực:</span>
-      <span className="font-semibold text-primary">{user?.name}</span>
-    </div>
-    {user?.role !== 'admin' && (
-      <div className="flex justify-between mb-2 text-sm">
-        <span className="text-muted">Ca trực (Cơ sở):</span>
-        {currentShift ? (
-          <span className="font-semibold text-success">{currentBranch?.name}</span>
-        ) : (
-          <span className="font-semibold text-danger">Chưa Check-in ca!</span>
-        )}
-      </div>
-    )}
-    <div className="flex justify-between mb-2 text-sm">
-      <span className="text-muted">Khách hàng:</span>
-      <span className="font-semibold">{name || '---'}</span>
-    </div>
+            <div className="flex justify-between mb-2 text-sm">
+              <span className="text-muted">Nhân viên trực:</span>
+              <span className="font-semibold text-primary">{user?.name}</span>
+            </div>
+            <div className="flex justify-between mb-2 text-sm">
+              <span className="text-muted">Cơ sở:</span>
+              <span className="font-semibold text-success">{branches.find(b => b.id === parseInt(branchId))?.name || '---'}</span>
+            </div>
+            <div className="flex justify-between mb-2 text-sm">
+              <span className="text-muted">Khách hàng:</span>
+              <span className="font-semibold">{name || '---'}</span>
+            </div>
             <div className="flex justify-between mb-2 text-sm">
               <span className="text-muted">Dịch vụ:</span>
               <span className="font-semibold">{selectedService?.name}</span>

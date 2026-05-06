@@ -7,7 +7,7 @@ import { exportToExcel } from '../utils/excelExport';
 
 const Orders = () => {
   const navigate = useNavigate();
-  const { orders, updateOrder, deleteOrder, importOrders } = useData();
+  const { orders, updateOrder, deleteOrder, importOrders, branches } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   
   const [showModal, setShowModal] = useState(false);
@@ -23,6 +23,7 @@ const Orders = () => {
   const handleExport = () => {
     const exportData = filteredOrders.map(o => ({
       "Mã Đơn": o.id,
+      "Cơ sở": o.branchId ? (branches?.find(b => b.id === o.branchId)?.name || 'Chưa phân bổ') : 'Chưa phân bổ',
       "Ngày tạo": o.createdAt,
       "Tên khách": o.customerName,
       "SĐT": o.customerPhone,
@@ -152,6 +153,7 @@ const Orders = () => {
           <thead>
             <tr>
               <th>Mã đơn</th>
+              <th>Cơ sở</th>
               <th>Khách hàng</th>
               <th>Dịch vụ</th>
               <th>Cân nặng (kg)</th>
@@ -162,11 +164,16 @@ const Orders = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredOrders.map(order => (
+            {filteredOrders.map(order => {
+              const branchName = order.branchId ? (branches?.find(b => b.id === order.branchId)?.name || 'Chưa phân bổ') : 'Chưa phân bổ';
+              return (
               <tr key={order.id}>
                 <td>
                   <div className="font-semibold">{order.id}</div>
                   <div className="text-xs text-muted">Bởi: {order.staff}</div>
+                </td>
+                <td>
+                  <span className="badge badge-gray">{branchName}</span>
                 </td>
                 <td>
                   <div>{order.customerName}</div>

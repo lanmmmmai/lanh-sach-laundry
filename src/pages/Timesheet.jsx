@@ -141,23 +141,41 @@ const Timesheet = () => {
       </div>
 
       <div className="card mb-6 p-0" style={{ overflow: 'hidden' }}>
-        <div className="flex border-b" style={{ borderColor: 'var(--border-color)' }}>
+        <div className="flex border-b" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
           {isAdmin ? (
             <>
               <button 
-                className={`px-6 py-3 font-medium transition-colors ${activeTab === 'templates' ? 'text-primary border-b-2 border-primary' : 'text-muted hover:bg-gray-50'}`}
+                className="transition-colors"
+                style={{
+                  padding: '1rem 1.5rem',
+                  fontWeight: activeTab === 'templates' ? '600' : '500',
+                  color: activeTab === 'templates' ? 'var(--primary)' : 'var(--text-muted)',
+                  borderBottom: activeTab === 'templates' ? '2px solid var(--primary)' : '2px solid transparent',
+                }}
                 onClick={() => setActiveTab('templates')}
               >
                 Khung giờ ca làm
               </button>
               <button 
-                className={`px-6 py-3 font-medium transition-colors ${activeTab === 'history' ? 'text-primary border-b-2 border-primary' : 'text-muted hover:bg-gray-50'}`}
+                className="transition-colors"
+                style={{
+                  padding: '1rem 1.5rem',
+                  fontWeight: activeTab === 'history' ? '600' : '500',
+                  color: activeTab === 'history' ? 'var(--primary)' : 'var(--text-muted)',
+                  borderBottom: activeTab === 'history' ? '2px solid var(--primary)' : '2px solid transparent',
+                }}
                 onClick={() => setActiveTab('history')}
               >
                 Lịch sử chấm công
               </button>
               <button 
-                className={`px-6 py-3 font-medium transition-colors ${activeTab === 'salary' ? 'text-primary border-b-2 border-primary' : 'text-muted hover:bg-gray-50'}`}
+                className="transition-colors"
+                style={{
+                  padding: '1rem 1.5rem',
+                  fontWeight: activeTab === 'salary' ? '600' : '500',
+                  color: activeTab === 'salary' ? 'var(--primary)' : 'var(--text-muted)',
+                  borderBottom: activeTab === 'salary' ? '2px solid var(--primary)' : '2px solid transparent',
+                }}
                 onClick={() => setActiveTab('salary')}
               >
                 Bảng lương tổng hợp
@@ -165,7 +183,13 @@ const Timesheet = () => {
             </>
           ) : (
             <button 
-              className={`px-6 py-3 font-medium transition-colors ${activeTab === 'my_shifts' ? 'text-primary border-b-2 border-primary' : 'text-muted hover:bg-gray-50'}`}
+              className="transition-colors"
+              style={{
+                padding: '1rem 1.5rem',
+                fontWeight: activeTab === 'my_shifts' ? '600' : '500',
+                color: activeTab === 'my_shifts' ? 'var(--primary)' : 'var(--text-muted)',
+                borderBottom: activeTab === 'my_shifts' ? '2px solid var(--primary)' : '2px solid transparent',
+              }}
               onClick={() => setActiveTab('my_shifts')}
             >
               Ca làm việc của tôi
@@ -177,13 +201,16 @@ const Timesheet = () => {
       {activeTab === 'templates' && isAdmin && (
         <div className="grid grid-cols-2 gap-6">
           {shiftTemplates.map(t => (
-            <div key={t.id} className="card flex justify-between items-center">
+            <div key={t.id} className="card flex justify-between items-center" style={{ padding: '1.5rem' }}>
               <div>
-                <h3 className="text-primary mb-1">{t.name}</h3>
-                <div className="text-muted flex items-center gap-2 text-sm"><Clock size={14} /> {t.startTime} - {t.endTime}</div>
+                <h3 className="mb-2" style={{ color: '#111827', fontSize: '1.125rem', fontWeight: '600' }}>{t.name}</h3>
+                <div className="text-muted flex items-center gap-2 text-sm" style={{ color: '#6b7280' }}>
+                  <Clock size={16} /> 
+                  <span>{t.startTime} - {t.endTime}</span>
+                </div>
               </div>
-              <button className="btn btn-outline border-danger text-danger p-2" onClick={() => deleteShiftTemplate(t.id)}>
-                <Trash2 size={16} />
+              <button className="btn btn-outline" style={{ padding: '0.5rem', borderColor: '#e5e7eb', color: '#4b5563' }} onClick={() => deleteShiftTemplate(t.id)}>
+                <Trash2 size={18} />
               </button>
             </div>
           ))}
