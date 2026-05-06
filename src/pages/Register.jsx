@@ -11,9 +11,10 @@ const Register = () => {
   const { registerAdmin } = useAuth();
   const navigate = useNavigate();
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
-    if (registerAdmin(email, password, name)) {
+    const success = await registerAdmin(email, password, name);
+    if (success) {
       navigate('/');
     } else {
       setError('Email này đã được sử dụng!');
