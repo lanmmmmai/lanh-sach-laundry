@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { Plus, Building2, Download, Upload, Wallet } from 'lucide-react';
+import { Plus, Building2, Download, Upload, Wallet, FileDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { exportToExcel } from '../utils/excelExport';
 
 const StaffManagement = () => {
   const { users, addStaff, updateStaff, deleteStaff, importStaff } = useAuth();
@@ -15,6 +16,29 @@ const StaffManagement = () => {
   const fileInputRef = useRef(null);
 
   const staffList = users.filter(u => u.role === 'staff');
+
+  const handleExport = () => {
+    const exportData = staffList.map(s => {
+      let parsedBranchIds = [];
+      try {
+        if (typeof s.branchIds === 'string') parsedBranchIds = JSON.parse(s.branchIds);
+        else if (Array.isArray(s.branchIds)) parsedBranchIds = s.branchIds;
+      } catch(e){}
+      if (parsedBranchIds.length === 0 && s.branchId) parsedBranchIds = [s.branchId];
+
+      const staffBranches = branches.filter(b => parsedBranchIds.includes(b.id)).map(b => b.name).join(', ');
+
+      return {
+        "Mã nhân viên": s.id,
+        "Họ và tên": s.name,
+        "Email": s.email,
+        "Cơ sở": staffBranches || "Chưa phân bổ",
+        "Loại lương": s.salaryType === 'fulltime' ? "Full-time" : "Part-time",
+        "Mức lương": s.salaryRate
+      };
+    });
+    exportToExcel(exportData, "DanhSachNhanVien");
+  };
 
   const openAddModal = () => {
     setEditingId(null);
@@ -92,10 +116,7 @@ const StaffManagement = () => {
     const templateData = [
       { "Họ và tên": "Nguyễn Văn A", "Email": "nva@test.com", "Mật khẩu": "123", "Mã cơ sở (cách nhau bởi dấu phẩy)": "1,2", "Loại lương (parttime/fulltime)": "parttime", "Mức lương": 25000 }
     ];
-    const ws = XLSX.utils.json_to_sheet(templateData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "NhanVien");
-    XLSX.writeFile(wb, "Mau_Nhap_Nhan_Vien.xlsx");
+    exportToExcel(templateData, "Mau_Nhap_Nhan_Vien");
   };
 
   const handleFileUpload = (e) => {
@@ -142,6 +163,9 @@ const StaffManagement = () => {
       <div className="flex justify-between items-center mb-6">
         <h2>Quản lý Nhân Viên</h2>
         <div className="flex gap-2">
+          <button className="btn btn-outline" onClick={handleExport} style={{ color: 'var(--primary)', borderColor: 'var(--primary)' }}>
+            <FileDown size={16} /> Xuất Excel
+          </button>
           <button className="btn btn-outline" onClick={downloadTemplate} style={{ color: 'var(--success)', borderColor: 'var(--success)' }}>
             <Download size={16} /> Tải file mẫu
           </button>

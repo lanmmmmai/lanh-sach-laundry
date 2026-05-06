@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { useData } from '../context/DataContext';
-import { Search, Plus, Edit, Trash2, Download, Upload } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Download, Upload, FileDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
+import { exportToExcel } from '../utils/excelExport';
 
 const Orders = () => {
   const navigate = useNavigate();
@@ -18,6 +19,21 @@ const Orders = () => {
     order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.customerPhone.includes(searchTerm)
   );
+
+  const handleExport = () => {
+    const exportData = filteredOrders.map(o => ({
+      "Mã Đơn": o.id,
+      "Ngày tạo": o.createdAt,
+      "Tên khách": o.customerName,
+      "SĐT": o.customerPhone,
+      "Dịch vụ": o.service,
+      "Khối lượng (kg)": o.weight,
+      "Thành tiền": o.totalPrice,
+      "Thanh toán": o.paymentStatus,
+      "Trạng thái": o.status
+    }));
+    exportToExcel(exportData, "DanhSachDonHang");
+  };
 
   const handleDelete = (id) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa đơn hàng này?")) {
@@ -41,10 +57,7 @@ const Orders = () => {
     const templateData = [
       { "Mã Đơn": "LD-2024-0001", "Ngày tạo": "2024-05-01", "Tên khách": "Nguyễn Văn A", "SĐT": "0912345678", "Dịch vụ": "Giặt sấy", "Khối lượng (kg)": 2, "Thành tiền": 50000, "Trạng thái": "Mới tạo", "Thanh toán": "Chưa thanh toán" }
     ];
-    const ws = XLSX.utils.json_to_sheet(templateData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "DonHang");
-    XLSX.writeFile(wb, "Mau_Nhap_Don_Hang.xlsx");
+    exportToExcel(templateData, "Mau_Nhap_Don_Hang");
   };
 
   const handleFileUpload = (e) => {
@@ -87,6 +100,9 @@ const Orders = () => {
       <div className="flex justify-between items-center mb-6">
         <h2>Quản lý Đơn hàng</h2>
         <div className="flex gap-2">
+          <button className="btn btn-outline" onClick={handleExport} style={{ color: 'var(--primary)', borderColor: 'var(--primary)' }}>
+            <FileDown size={16} /> Xuất Excel
+          </button>
           <button className="btn btn-outline" onClick={downloadTemplate} style={{ color: 'var(--success)', borderColor: 'var(--success)' }}>
             <Download size={16} /> Tải file mẫu
           </button>

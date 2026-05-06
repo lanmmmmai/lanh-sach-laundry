@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { useData } from '../context/DataContext';
-import { Plus, Download, Upload, MapPin } from 'lucide-react';
+import { Plus, Download, Upload, MapPin, FileDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { exportToExcel } from '../utils/excelExport';
 
 const Branches = () => {
   const { branches, addBranch, updateBranch, deleteBranch, importBranches } = useData();
@@ -9,6 +10,15 @@ const Branches = () => {
   const [newBranch, setNewBranch] = useState({ name: '', address: '' });
   const [editingId, setEditingId] = useState(null);
   const fileInputRef = useRef(null);
+
+  const handleExport = () => {
+    const exportData = branches.map(b => ({
+      "Mã cơ sở": b.id,
+      "Tên cơ sở": b.name,
+      "Địa chỉ": b.address
+    }));
+    exportToExcel(exportData, "DanhSachCoSo");
+  };
 
   const openAddModal = () => {
     setEditingId(null);
@@ -44,10 +54,7 @@ const Branches = () => {
     const templateData = [
       { "Tên cơ sở": "Cơ sở 1", "Địa chỉ": "123 Đường A, Quận 1, TP.HCM" }
     ];
-    const ws = XLSX.utils.json_to_sheet(templateData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "CoSo");
-    XLSX.writeFile(wb, "Mau_Nhap_Co_So.xlsx");
+    exportToExcel(templateData, "Mau_Nhap_Co_So");
   };
 
   const handleFileUpload = (e) => {
@@ -82,6 +89,9 @@ const Branches = () => {
       <div className="flex justify-between items-center mb-6">
         <h2>Quản lý Cơ Sở (Chi nhánh)</h2>
         <div className="flex gap-2">
+          <button className="btn btn-outline" onClick={handleExport} style={{ color: 'var(--primary)', borderColor: 'var(--primary)' }}>
+            <FileDown size={16} /> Xuất Excel
+          </button>
           <button className="btn btn-outline" onClick={downloadTemplate} style={{ color: 'var(--success)', borderColor: 'var(--success)' }}>
             <Download size={16} /> Tải file mẫu
           </button>

@@ -87,20 +87,57 @@ const Timesheet = () => {
     updateShift(shiftId, { actualStartTime: new Date().toLocaleTimeString('en-US', { hour12: false }), status: 'CheckedIn' });
   };
 
+  const handleExport = () => {
+    import('../utils/excelExport').then(({ exportToExcel }) => {
+      if (activeTab === 'history' || activeTab === 'my_shifts') {
+        const data = shifts.filter(s => isAdmin ? true : s.staffId === user.id).map(shift => {
+          const staff = users.find(u => u.id === shift.staffId);
+          const branch = branches.find(b => b.id === shift.branchId);
+          return {
+            "Ngày": new Date(shift.date).toLocaleDateString('vi-VN'),
+            "Tên Ca": shift.shiftName || 'Ca tự do',
+            "Khung giờ": `${shift.startTime} - ${shift.endTime}`,
+            "Nhân viên": staff?.name || 'Không rõ',
+            "Cơ sở": branch?.name || 'Không rõ',
+            "Giờ Check-in": shift.actualStartTime || '--:--',
+            "Giờ Check-out": shift.actualEndTime || '--:--',
+            "Trạng thái": shift.status === 'Completed' ? 'Đã hoàn thành' : shift.status === 'CheckedIn' ? 'Đang làm' : 'Chưa bắt đầu'
+          };
+        });
+        exportToExcel(data, "LichSuChamCong");
+      } else if (activeTab === 'salary') {
+        const data = staffList.map(staff => ({
+          "Nhân viên": staff.name,
+          "Chế độ lương": staff.salaryType === 'fulltime' ? 'Full-time (Tháng)' : 'Part-time (Giờ)',
+          "Mức lương cơ sở": staff.salaryRate,
+          "Tổng lương tạm tính": calculateSalary(staff)
+        }));
+        exportToExcel(data, "BangLuongTongHop");
+      }
+    });
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2>{isAdmin ? 'Quản lý Chấm công & Lương' : 'Chấm công của tôi'}</h2>
-        {isAdmin && activeTab === 'templates' && (
-          <button className="btn btn-primary" onClick={() => setShowTemplateModal(true)}>
-            <Plus size={16} /> Tạo ca làm mẫu
-          </button>
-        )}
-        {!isAdmin && activeTab === 'my_shifts' && (
-          <button className="btn btn-primary" onClick={() => setShowCheckInModal(true)}>
-            <CheckCircle size={16} /> Bắt đầu ca mới (Check In)
-          </button>
-        )}
+        <div className="flex gap-2">
+          {(activeTab === 'history' || activeTab === 'salary' || activeTab === 'my_shifts') && (
+            <button className="btn btn-outline" onClick={handleExport} style={{ color: 'var(--primary)', borderColor: 'var(--primary)' }}>
+              <Download size={16} /> Xuất Excel
+            </button>
+          )}
+          {isAdmin && activeTab === 'templates' && (
+            <button className="btn btn-primary" onClick={() => setShowTemplateModal(true)}>
+              <Plus size={16} /> Tạo ca làm mẫu
+            </button>
+          )}
+          {!isAdmin && activeTab === 'my_shifts' && (
+            <button className="btn btn-primary" onClick={() => setShowCheckInModal(true)}>
+              <CheckCircle size={16} /> Bắt đầu ca mới (Check In)
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="card mb-6 p-0" style={{ overflow: 'hidden' }}>

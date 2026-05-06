@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { useData } from '../context/DataContext';
-import { Plus, Download, Upload, List } from 'lucide-react';
+import { Plus, Download, Upload, List, FileDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { exportToExcel } from '../utils/excelExport';
 
 const Services = () => {
   const { services, addService, updateService, deleteService, importServices } = useData();
@@ -9,6 +10,15 @@ const Services = () => {
   const [newService, setNewService] = useState({ name: '', price: '' });
   const [editingId, setEditingId] = useState(null);
   const fileInputRef = useRef(null);
+
+  const handleExport = () => {
+    const exportData = services.map(s => ({
+      "Mã dịch vụ": s.id,
+      "Tên dịch vụ": s.name,
+      "Đơn giá (VNĐ/kg)": s.price
+    }));
+    exportToExcel(exportData, "DanhSachDichVu");
+  };
 
   const openAddModal = () => {
     setEditingId(null);
@@ -48,10 +58,7 @@ const Services = () => {
       { "Tên dịch vụ": "Giặt sấy tiêu chuẩn", "Giá (đ/kg)": 25000 },
       { "Tên dịch vụ": "Giặt hấp áo vest", "Giá (đ/kg)": 50000 }
     ];
-    const ws = XLSX.utils.json_to_sheet(templateData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "DichVu");
-    XLSX.writeFile(wb, "Mau_Nhap_Dich_Vu.xlsx");
+    exportToExcel(templateData, "Mau_Nhap_Dich_Vu");
   };
 
   const handleFileUpload = (e) => {
@@ -73,14 +80,10 @@ const Services = () => {
       }));
       
       if (newServicesList.length > 0) {
-        // Appending to existing services or overwrite? Overwrite is usually safer for bulk imports, 
-        // but let's append to not lose manually added ones, or just overwrite.
-        // The prompt says "dữ liệu tự admin nhập". Let's overwrite so they can manage full list via Excel.
         importServices(newServicesList);
         alert(`Đã nhập thành công ${newServicesList.length} dịch vụ từ file Excel!`);
       }
       
-      // Reset input
       if (fileInputRef.current) fileInputRef.current.value = "";
     };
     reader.readAsBinaryString(file);
@@ -91,6 +94,9 @@ const Services = () => {
       <div className="flex justify-between items-center mb-6">
         <h2>Quản lý Dịch vụ Bảng giá</h2>
         <div className="flex gap-2">
+          <button className="btn btn-outline" onClick={handleExport} style={{ color: 'var(--primary)', borderColor: 'var(--primary)' }}>
+            <FileDown size={16} /> Xuất Excel
+          </button>
           <button className="btn btn-outline" onClick={downloadTemplate} style={{ color: 'var(--success)', borderColor: 'var(--success)' }}>
             <Download size={16} /> Tải file mẫu
           </button>
