@@ -13,6 +13,15 @@ export const DataProvider = ({ children }) => {
   const [customers, setCustomers] = useState([]);
   const [shifts, setShifts] = useState([]);
   const [shiftTemplates, setShiftTemplates] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+
+  const addNotification = (message) => {
+    setNotifications(prev => [{ id: Date.now(), message, time: new Date().toISOString(), read: false }, ...prev].slice(0, 10));
+  };
+  
+  const markNotificationsAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -29,10 +38,12 @@ export const DataProvider = ({ children }) => {
     const r = await fetch('http://localhost:3001/api/shift-templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...template, adminId }) });
     const data = await r.json();
     setShiftTemplates([...shiftTemplates, data]);
+    addNotification('Hệ thống đã được cập nhật (Thêm ca làm việc)');
   };
   const deleteShiftTemplate = async (id) => {
     await fetch(`http://localhost:3001/api/shift-templates/${id}`, { method: 'DELETE' });
     setShiftTemplates(shiftTemplates.filter(t => t.id !== id));
+    addNotification('Hệ thống đã được cập nhật (Xóa ca làm việc)');
   };
 
   const addCustomer = async (customer) => {
@@ -53,6 +64,7 @@ export const DataProvider = ({ children }) => {
   const updateBranch = async (id, updatedBranch) => {
     await fetch(`http://localhost:3001/api/branches/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...updatedBranch, adminId }) });
     setBranches(branches.map(b => b.id === id ? { ...b, ...updatedBranch } : b));
+    addNotification('Hệ thống đã được cập nhật (Sửa chi nhánh)');
   };
   const deleteBranch = async (id) => {
     await fetch(`http://localhost:3001/api/branches/${id}`, { method: 'DELETE' });
@@ -63,6 +75,7 @@ export const DataProvider = ({ children }) => {
     const o = { ...order, id: `LD-${new Date().getFullYear()}-${String(orders.length + 1).padStart(4, '0')}`, adminId };
     await fetch('http://localhost:3001/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(o) });
     setOrders([...orders, o]);
+    addNotification(`Đơn hàng mới đã được thêm: ${o.id}`);
   };
   const updateOrder = async (id, updatedOrder) => {
     await fetch(`http://localhost:3001/api/orders/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...updatedOrder, adminId }) });
@@ -81,6 +94,7 @@ export const DataProvider = ({ children }) => {
   const updateService = async (id, updatedService) => {
     await fetch(`http://localhost:3001/api/services/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...updatedService, adminId }) });
     setServices(services.map(s => s.id === id ? { ...s, ...updatedService } : s));
+    addNotification('Hệ thống đã được cập nhật (Sửa dịch vụ)');
   };
   const deleteService = async (id) => {
     await fetch(`http://localhost:3001/api/services/${id}`, { method: 'DELETE' });
@@ -138,7 +152,8 @@ export const DataProvider = ({ children }) => {
       services, addService, updateService, deleteService, importServices,
       customers, addCustomer,
       shifts, addShift, updateShift, deleteShift,
-      shiftTemplates, addShiftTemplate, deleteShiftTemplate
+      shiftTemplates, addShiftTemplate, deleteShiftTemplate,
+      notifications, markNotificationsAsRead
     }}>
       {children}
     </DataContext.Provider>
