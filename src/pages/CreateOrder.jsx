@@ -17,8 +17,11 @@ const CreateOrder = () => {
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [isExisting, setIsExisting] = useState(false);
+  const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
 
   const [serviceId, setServiceId] = useState(services.length > 0 ? services[0].id : '');
+  const [serviceSearchQuery, setServiceSearchQuery] = useState('');
+  const [showServiceSuggestions, setShowServiceSuggestions] = useState(false);
   const [weight, setWeight] = useState(1);
   const [surcharge, setSurcharge] = useState(0);
   const [discount, setDiscount] = useState(0);
@@ -45,6 +48,7 @@ const CreateOrder = () => {
   const handlePhoneChange = (e) => {
     const val = e.target.value;
     setPhone(val);
+    setShowCustomerSuggestions(true);
     const existingCust = customers.find(c => c.phone === val);
     if (existingCust) {
       setName(existingCust.name);
@@ -140,9 +144,40 @@ const CreateOrder = () => {
                   )}
                 </select>
               </div>
-              <div className="input-group mb-0">
+              <div className="input-group mb-0" style={{ position: 'relative' }}>
                 <label className="input-label">Số điện thoại</label>
-                <input type="text" className="input-field" placeholder="Nhập SĐT để tìm" value={phone} onChange={handlePhoneChange} />
+                <input 
+                  type="text" 
+                  className="input-field" 
+                  placeholder="Nhập SĐT để tìm" 
+                  value={phone} 
+                  onChange={handlePhoneChange} 
+                  onFocus={() => setShowCustomerSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowCustomerSuggestions(false), 200)}
+                />
+                {showCustomerSuggestions && phone.length > 0 && !isExisting && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, backgroundColor: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', marginTop: '0.25rem', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.5)' }}>
+                    {customers.filter(c => c.phone.includes(phone)).map(c => (
+                      <div 
+                        key={c.id} 
+                        style={{ padding: '0.5rem 1rem', cursor: 'pointer', borderBottom: '1px solid var(--border-color)' }}
+                        className="hover:bg-slate-800"
+                        onClick={() => {
+                          setPhone(c.phone);
+                          setName(c.name);
+                          setIsExisting(true);
+                          setShowCustomerSuggestions(false);
+                        }}
+                      >
+                        <div className="font-semibold text-primary">{c.phone}</div>
+                        <div className="text-sm">{c.name}</div>
+                      </div>
+                    ))}
+                    {customers.filter(c => c.phone.includes(phone)).length === 0 && (
+                      <div style={{ padding: '0.5rem 1rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Không tìm thấy khách hàng. Nhập tên để thêm mới.</div>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="input-group mb-0">
                 <label className="input-label">Tên khách hàng</label>
@@ -165,13 +200,51 @@ const CreateOrder = () => {
             </div>
             
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="input-group mb-0">
-                <label className="input-label">Chọn dịch vụ</label>
-                <select className="input-field" value={serviceId} onChange={e => setServiceId(e.target.value)}>
-                  {services.map(s => (
-                    <option key={s.id} value={s.id}>{s.name} - {s.price.toLocaleString()}đ/kg</option>
-                  ))}
-                </select>
+              <div className="input-group mb-0" style={{ position: 'relative' }}>
+                <label className="input-label">Tìm / Chọn dịch vụ</label>
+                <div 
+                  className="input-field flex items-center justify-between cursor-pointer"
+                  onClick={() => setShowServiceSuggestions(!showServiceSuggestions)}
+                >
+                  <span style={{ color: selectedService ? 'inherit' : 'var(--text-muted)' }} className="truncate pr-2">
+                    {selectedService ? `${selectedService.name} - ${selectedService.price.toLocaleString()}đ/kg` : 'Nhấn để chọn dịch vụ...'}
+                  </span>
+                  <span className="text-xs">▼</span>
+                </div>
+                
+                {showServiceSuggestions && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 30, backgroundColor: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', marginTop: '0.25rem', padding: '0.5rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.5)' }}>
+                    <input 
+                      type="text" 
+                      className="input-field mb-2" 
+                      placeholder="Gõ tên dịch vụ để tìm..." 
+                      value={serviceSearchQuery}
+                      onChange={e => setServiceSearchQuery(e.target.value)}
+                      onClick={e => e.stopPropagation()}
+                      autoFocus
+                    />
+                    <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                      {services.filter(s => s.name.toLowerCase().includes(serviceSearchQuery.toLowerCase())).map(s => (
+                        <div 
+                          key={s.id} 
+                          style={{ padding: '0.5rem', cursor: 'pointer', borderRadius: '0.25rem', marginBottom: '0.25rem' }}
+                          className="hover:bg-slate-800"
+                          onClick={() => {
+                            setServiceId(s.id);
+                            setShowServiceSuggestions(false);
+                            setServiceSearchQuery('');
+                          }}
+                        >
+                          <div className="font-semibold">{s.name}</div>
+                          <div className="text-sm text-success">{s.price.toLocaleString()}đ/kg</div>
+                        </div>
+                      ))}
+                      {services.filter(s => s.name.toLowerCase().includes(serviceSearchQuery.toLowerCase())).length === 0 && (
+                        <div style={{ padding: '0.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>Không tìm thấy dịch vụ nào khớp.</div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="input-group mb-0">
                 <label className="input-label">Cân nặng (kg)</label>
