@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient';
 
 const AuthContext = createContext();
 
@@ -21,23 +22,37 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       const adminId = user.role === 'admin' ? user.id : (user.adminId || 1);
-      fetch(`http://localhost:3001/api/users?adminId=${adminId}`)
-        .then(res => res.json())
-        .then(data => setUsers(data))
-        .catch(console.error);
+      const fetchUsers = async () => {
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .or(`adminId.eq.${adminId},id.eq.${adminId}`);
+        if (!error && data) {
+          const parsedData = data.map(u => ({
+            ...u,
+            branchIds: typeof u.branchIds === 'string' ? JSON.parse(u.branchIds) : (u.branchIds || [])
+          }));
+          setUsers(parsedData);
+        }
+      };
+      fetchUsers();
     }
   }, [user]);
 
   const login = async (email, password) => {
     try {
-      const res = await fetch('http://localhost:3001/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-      if (data.success) {
-        setUser(data.user);
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .eq('password', password)
+        .single();
+        
+      if (data && !error) {
+        setUser({
+          ...data,
+          branchIds: typeof data.branchIds === 'string' ? JSON.parse(data.branchIds) : (data.branchIds || [])
+        });
         return true;
       }
       return false;
@@ -46,13 +61,21 @@ export const AuthProvider = ({ children }) => {
 
   const registerAdmin = async (email, password, name) => {
     try {
-      const res = await fetch('http://localhost:3001/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, role: 'admin', name, branchId: null })
-      });
-      const data = await res.json();
-      if (!res.ok) return false;
+      const { data: existing } = await supabase.from('users').select('id').eq('email', email);
+      if (existing && existing.length > 0) return false;
+
+      const { data, error } = await supabase
+        .from('users')
+        .insert([{ email, password, role: 'admin', name, branchIds: '[]', salaryType: 'parttime', salaryRate: 0 }])
+        .select()
+        .single();
+        
+      if (error || !data) return false;
+      
+      await supabase.from('users').update({ adminId: data.id }).eq('id', data.id);
+      data.adminId = data.id;
+      data.branchIds = [];
+      
       setUsers([...users, data]);
       setUser(data);
       return true;
@@ -62,13 +85,14 @@ export const AuthProvider = ({ children }) => {
   const addSubAdmin = async (email, password, name) => {
     try {
       const adminId = user?.adminId || user?.id || 1;
-      const res = await fetch('http://localhost:3001/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, role: 'admin', name, branchId: null, adminId })
-      });
-      const data = await res.json();
-      if (!res.ok) return false;
+      const { data, error } = await supabase
+        .from('users')
+        .insert([{ email, password, role: 'admin', name, adminId, branchIds: '[]', salaryType: 'parttime', salaryRate: 0 }])
+        .select()
+        .single();
+        
+      if (error || !data) return false;
+      data.branchIds = [];
       setUsers([...users, data]);
       return true;
     } catch (e) { return false; }
@@ -76,12 +100,14 @@ export const AuthProvider = ({ children }) => {
 
   const createIndependentAdmin = async (email, password, name) => {
     try {
-      const res = await fetch('http://localhost:3001/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, role: 'admin', name, branchId: null })
-      });
-      if (!res.ok) return false;
+      const { data, error } = await supabase
+        .from('users')
+        .insert([{ email, password, role: 'admin', name, branchIds: '[]', salaryType: 'parttime', salaryRate: 0 }])
+        .select()
+        .single();
+        
+      if (error || !data) return false;
+      await supabase.from('users').update({ adminId: data.id }).eq('id', data.id);
       return true;
     } catch (e) { return false; }
   };
@@ -89,13 +115,22 @@ export const AuthProvider = ({ children }) => {
   const addStaff = async (staffData) => {
     try {
       const adminId = user?.adminId || user?.id || 1;
-      const res = await fetch('http://localhost:3001/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...staffData, role: 'staff', adminId })
-      });
-      const data = await res.json();
-      if (!res.ok) return false;
+      const bIds = staffData.branchIds ? JSON.stringify(staffData.branchIds) : '[]';
+      const { data, error } = await supabase
+        .from('users')
+        .insert([{ 
+          ...staffData, 
+          role: 'staff', 
+          adminId,
+          branchIds: bIds,
+          salaryType: staffData.salaryType || 'parttime',
+          salaryRate: staffData.salaryRate || 0
+        }])
+        .select()
+        .single();
+        
+      if (error || !data) return false;
+      data.branchIds = staffData.branchIds || [];
       setUsers([...users, data]);
       return true;
     } catch (e) { return false; }
@@ -103,12 +138,12 @@ export const AuthProvider = ({ children }) => {
 
   const updateStaff = async (id, updatedData) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/users/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedData)
-      });
-      if (res.ok) {
+      const updatePayload = { ...updatedData };
+      if (updatePayload.branchIds) {
+        updatePayload.branchIds = JSON.stringify(updatePayload.branchIds);
+      }
+      const { error } = await supabase.from('users').update(updatePayload).eq('id', id);
+      if (!error) {
         setUsers(users.map(u => u.id === id ? { ...u, ...updatedData } : u));
       }
     } catch (e) {}
@@ -116,12 +151,12 @@ export const AuthProvider = ({ children }) => {
 
   const updateUser = async (id, updatedData) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/users/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedData)
-      });
-      if (res.ok) {
+      const updatePayload = { ...updatedData };
+      if (updatePayload.branchIds) {
+        updatePayload.branchIds = JSON.stringify(updatePayload.branchIds);
+      }
+      const { error } = await supabase.from('users').update(updatePayload).eq('id', id);
+      if (!error) {
         setUsers(users.map(u => u.id === id ? { ...u, ...updatedData } : u));
         if (user && user.id === id) setUser({ ...user, ...updatedData });
       }
@@ -130,8 +165,8 @@ export const AuthProvider = ({ children }) => {
 
   const deleteStaff = async (id) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/users/${id}`, { method: 'DELETE' });
-      if (res.ok) {
+      const { error } = await supabase.from('users').delete().eq('id', id);
+      if (!error) {
         setUsers(users.filter(u => u.id !== id));
       }
     } catch (e) {}
@@ -139,12 +174,40 @@ export const AuthProvider = ({ children }) => {
 
   const importStaff = async (newStaff) => {
     const adminId = user?.adminId || user?.id || 1;
-    const mappedStaff = newStaff.map(s => ({ ...s, adminId }));
-    const r = await fetch('http://localhost:3001/api/users/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(mappedStaff) });
-    if(r.ok) {
-      const res = await fetch('http://localhost:3001/api/users');
-      const data = await res.json();
-      setUsers(data);
+    for (const s of newStaff) {
+      const bIds = s.branchIds ? JSON.stringify(s.branchIds) : '[]';
+      const { data: existing } = await supabase.from('users').select('id').or(`email.eq.${s.email},name.eq.${s.name}`);
+      if (existing && existing.length > 0) {
+        await supabase.from('users').update({
+          password: s.password,
+          branchId: s.branchId || null,
+          branchIds: bIds,
+          salaryType: s.salaryType || 'parttime',
+          salaryRate: s.salaryRate || 0,
+          adminId
+        }).eq('id', existing[0].id);
+      } else {
+        await supabase.from('users').insert([{
+          email: s.email,
+          password: s.password,
+          role: 'staff',
+          name: s.name,
+          branchId: s.branchId || null,
+          branchIds: bIds,
+          salaryType: s.salaryType || 'parttime',
+          salaryRate: s.salaryRate || 0,
+          adminId
+        }]);
+      }
+    }
+    
+    const { data } = await supabase.from('users').select('*').or(`adminId.eq.${adminId},id.eq.${adminId}`);
+    if (data) {
+      const parsedData = data.map(u => ({
+        ...u,
+        branchIds: typeof u.branchIds === 'string' ? JSON.parse(u.branchIds) : (u.branchIds || [])
+      }));
+      setUsers(parsedData);
     }
   };
 
