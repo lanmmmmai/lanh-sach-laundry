@@ -90,10 +90,35 @@ export const DataProvider = ({ children }) => {
   };
 
   const addOrder = async (order) => {
-    const o = { ...order, id: `LD-${new Date().getFullYear()}-${String(orders.length + 1).padStart(4, '0')}`, adminId, isHidden: 0 };
+    const orderDate = new Date(order.createdAt || Date.now());
+    const month = orderDate.getMonth() + 1;
+    const day = String(orderDate.getDate()).padStart(2, '0');
+    const datePrefix = `${month}${day}`;
+    
+    const ordersToday = orders.filter(o => {
+      if (!o.createdAt) return false;
+      const d = new Date(o.createdAt);
+      return d.getMonth() + 1 === month && d.getDate() === orderDate.getDate() && d.getFullYear() === orderDate.getFullYear();
+    });
+    
+    let maxIndex = 0;
+    ordersToday.forEach(o => {
+      if (o.id && o.id.startsWith(datePrefix)) {
+        const idxStr = o.id.slice(datePrefix.length);
+        const idx = parseInt(idxStr, 10);
+        if (!isNaN(idx) && idx > maxIndex) {
+          maxIndex = idx;
+        }
+      }
+    });
+    
+    const dailyIndex = Math.max(maxIndex, ordersToday.length) + 1;
+    const orderId = `${datePrefix}${String(dailyIndex).padStart(3, '0')}`;
+
+    const o = { ...order, id: orderId, adminId, isHidden: 0 };
     const { error } = await supabase.from('orders').insert([o]);
     if (!error) {
-      setOrders([...orders, o]);
+      setOrders([o, ...orders]);
       addNotification(`Đơn hàng mới đã được thêm: ${o.id}`);
     }
   };
