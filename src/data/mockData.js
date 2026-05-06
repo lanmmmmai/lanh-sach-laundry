@@ -1,0 +1,68 @@
+export const mockOrders = [
+  {
+    id: 'LD-2026-0001',
+    createdAt: '2026-05-04T08:30:00Z',
+    staff: 'Nguyễn Văn A',
+    customerName: 'Trần Thị B',
+    customerPhone: '0901234567',
+    service: 'Giặt sấy tiêu chuẩn',
+    weight: 5,
+    pricePerKg: 25000,
+    surcharge: 10000,
+    discount: 5000,
+    totalPrice: 130000,
+    paymentStatus: 'Đã thanh toán',
+    paymentMethod: 'Tiền mặt',
+    status: 'Đã giao khách',
+    returnDate: '2026-05-05T10:00:00Z',
+    note: 'Giặt riêng đồ trắng',
+  },
+  {
+    id: 'LD-2026-0002',
+    createdAt: '2026-05-04T09:15:00Z',
+    staff: 'Nguyễn Văn A',
+    customerName: 'Lê Văn C',
+    customerPhone: '0987654321',
+    service: 'Giặt hấp áo vest',
+    weight: 2,
+    pricePerKg: 50000,
+    surcharge: 0,
+    discount: 0,
+    totalPrice: 100000,
+    paymentStatus: 'Chưa thanh toán',
+    paymentMethod: '-',
+    status: 'Đang giặt',
+    returnDate: '2026-05-06T15:00:00Z',
+    note: '',
+  },
+  {
+    id: 'LD-2026-0003',
+    createdAt: '2026-05-04T10:00:00Z',
+    staff: 'Phạm Thị D',
+    customerName: 'Hoàng Hữu E',
+    customerPhone: '0912345678',
+    service: 'Giặt sấy hỏa tốc',
+    weight: 8,
+    pricePerKg: 35000,
+    surcharge: 20000,
+    discount: 0,
+    totalPrice: 300000,
+    paymentStatus: 'Chưa thanh toán',
+    paymentMethod: '-',
+    status: 'Mới tạo',
+    returnDate: '2026-05-04T16:00:00Z',
+    note: 'Giao hỏa tốc trước 4h chiều',
+  }
+];
+
+export const mockBranches = [
+  { id: 1, name: 'Cơ sở 1 (Trụ sở chính)', address: '123 Đường A, Quận 1, TP.HCM' },
+  { id: 2, name: 'Cơ sở 2', address: '456 Đường B, Quận 2, TP.HCM' },
+];
+
+export const mockServices = [
+  { id: 1, name: 'Giặt sấy tiêu chuẩn', price: 25000 },
+  { id: 2, name: 'Giặt sấy hỏa tốc', price: 35000 },
+  { id: 3, name: 'Giặt hấp áo vest', price: 50000 },
+  { id: 4, name: 'Giặt chăn mền lớn', price: 40000 },
+];
