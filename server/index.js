@@ -140,6 +140,16 @@ app.delete('/api/users/:id', async (req, res) => {
     res.json({ success: true });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
+app.post('/api/users/bulk', async (req, res) => {
+  try {
+    const users = req.body;
+    await runQuery("DELETE FROM users WHERE role = 'staff'"); // Keep admin
+    for (const u of users) {
+      await runQuery('INSERT INTO users (email, password, role, name, branchId) VALUES (?, ?, ?, ?, ?)', [u.email, u.password, 'staff', u.name, u.branchId || null]);
+    }
+    res.json({ success: true });
+  } catch (error) { res.status(500).json({ error: error.message }); }
+});
 
 app.get('/api/branches', async (req, res) => {
   const data = await getQuery('SELECT * FROM branches');
@@ -157,6 +167,14 @@ app.put('/api/branches/:id', async (req, res) => {
 });
 app.delete('/api/branches/:id', async (req, res) => {
   await runQuery('DELETE FROM branches WHERE id = ?', [req.params.id]);
+  res.json({ success: true });
+});
+app.post('/api/branches/bulk', async (req, res) => {
+  const branches = req.body;
+  await runQuery('DELETE FROM branches'); // Replace all
+  for (const b of branches) {
+    await runQuery('INSERT INTO branches (name, address) VALUES (?, ?)', [b.name, b.address]);
+  }
   res.json({ success: true });
 });
 
@@ -222,6 +240,20 @@ app.put('/api/orders/:id', async (req, res) => {
 });
 app.delete('/api/orders/:id', async (req, res) => {
   await runQuery('DELETE FROM orders WHERE id = ?', [req.params.id]);
+  res.json({ success: true });
+});
+app.post('/api/orders/bulk', async (req, res) => {
+  const orders = req.body;
+  for (const o of orders) {
+    // Basic check to see if exists
+    const existing = await getQuery('SELECT id FROM orders WHERE id = ?', [o.id]);
+    if (existing.length === 0) {
+      await runQuery(`INSERT INTO orders (id, createdAt, staff, customerName, customerPhone, service, weight, pricePerKg, surcharge, discount, totalPrice, paymentStatus, paymentMethod, status, returnDate, note) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+        [o.id, o.createdAt, o.staff, o.customerName, o.customerPhone, o.service, o.weight, o.pricePerKg, o.surcharge, o.discount, o.totalPrice, o.paymentStatus, o.paymentMethod, o.status, o.returnDate, o.note]
+      );
+    }
+  }
   res.json({ success: true });
 });
 

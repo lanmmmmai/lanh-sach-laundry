@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useData } from '../context/DataContext';
-import { Search, Plus, Edit, Trash2 } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Download, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 
 const Orders = () => {
   const navigate = useNavigate();
-  const { orders, updateOrder, deleteOrder } = useData();
+  const { orders, updateOrder, deleteOrder, importOrders } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   
   const [showModal, setShowModal] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
+  const fileInputRef = useRef(null);
 
   const filteredOrders = orders.filter(order => 
     order.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -35,13 +37,75 @@ const Orders = () => {
     setEditingOrder(null);
   };
 
+  const downloadTemplate = () => {
+    const templateData = [
+      { "Mã Đơn": "LD-2024-0001", "Ngày tạo": "2024-05-01", "Tên khách": "Nguyễn Văn A", "SĐT": "0912345678", "Dịch vụ": "Giặt sấy", "Khối lượng (kg)": 2, "Thành tiền": 50000, "Trạng thái": "Mới tạo", "Thanh toán": "Chưa thanh toán" }
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "DonHang");
+    XLSX.writeFile(wb, "Mau_Nhap_Don_Hang.xlsx");
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const data = evt.target.result;
+      const workbook = XLSX.read(data, { type: 'binary' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      
+      const newOrdersList = jsonData.map((item, index) => ({
+        id: item["Mã Đơn"] || item["Ma don"] || `LD-${Date.now()}-${index}`,
+        createdAt: item["Ngày tạo"] || new Date().toISOString(),
+        staff: item["Nhân viên"] || "Admin",
+        customerName: item["Tên khách"] || "Khách lẻ",
+        customerPhone: item["SĐT"] || "",
+        service: item["Dịch vụ"] || item["Dich vu"] || "",
+        weight: item["Khối lượng (kg)"] || item["Khoi luong"] || 1,
+        totalPrice: item["Thành tiền"] || item["Thanh tien"] || 0,
+        status: item["Trạng thái"] || item["Trang thai"] || "Mới tạo",
+        paymentStatus: item["Thanh toán"] || item["Thanh toan"] || "Chưa thanh toán"
+      }));
+      
+      if (newOrdersList.length > 0) {
+        importOrders(newOrdersList);
+        alert(`Đã nhập thành công ${newOrdersList.length} đơn hàng từ file Excel!`);
+      }
+      
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    reader.readAsBinaryString(file);
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2>Quản lý Đơn hàng</h2>
-        <button className="btn btn-primary" onClick={() => navigate('/create-order')}>
-          <Plus size={16} /> Tạo đơn mới
-        </button>
+        <div className="flex gap-2">
+          <button className="btn btn-outline" onClick={downloadTemplate} style={{ color: 'var(--success)', borderColor: 'var(--success)' }}>
+            <Download size={16} /> Tải file mẫu
+          </button>
+          
+          <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()}>
+            <Upload size={16} /> Nhập từ Excel
+          </button>
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            accept=".xlsx, .xls, .csv" 
+            style={{ display: 'none' }} 
+          />
+          
+          <button className="btn btn-primary" onClick={() => navigate('/create-order')}>
+            <Plus size={16} /> Tạo đơn mới
+          </button>
+        </div>
       </div>
 
       <div className="card mb-6">

@@ -1,16 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { Plus, Building2 } from 'lucide-react';
+import { Plus, Building2, Download, Upload } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 const StaffManagement = () => {
-  const { users, addStaff, updateStaff, deleteStaff } = useAuth();
+  const { users, addStaff, updateStaff, deleteStaff, importStaff } = useAuth();
   const { branches } = useData();
   
   const [showModal, setShowModal] = useState(false);
   const [newStaff, setNewStaff] = useState({ name: '', email: '', password: '', branchId: '' });
   const [editingId, setEditingId] = useState(null);
   const [error, setError] = useState('');
+  const fileInputRef = useRef(null);
 
   const staffList = users.filter(u => u.role === 'staff');
 
@@ -57,13 +59,69 @@ const StaffManagement = () => {
     }
   };
 
+  const downloadTemplate = () => {
+    const templateData = [
+      { "Họ và tên": "Nguyễn Văn A", "Email": "nva@test.com", "Mật khẩu": "123", "Mã cơ sở": "" }
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "NhanVien");
+    XLSX.writeFile(wb, "Mau_Nhap_Nhan_Vien.xlsx");
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const data = evt.target.result;
+      const workbook = XLSX.read(data, { type: 'binary' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      
+      const newStaffList = jsonData.map((item) => ({
+        name: item["Họ và tên"] || item["Ho va ten"] || "Không tên",
+        email: item["Email"],
+        password: String(item["Mật khẩu"] || item["Mat khau"] || "123"),
+        branchId: item["Mã cơ sở"] || item["Ma co so"] || null
+      })).filter(s => s.email); // Must have email
+      
+      if (newStaffList.length > 0) {
+        importStaff(newStaffList);
+        alert(`Đã nhập thành công ${newStaffList.length} nhân viên từ file Excel!`);
+      }
+      
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    reader.readAsBinaryString(file);
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2>Quản lý Nhân Viên</h2>
-        <button className="btn btn-primary" onClick={openAddModal}>
-          <Plus size={16} /> Thêm nhân viên
-        </button>
+        <div className="flex gap-2">
+          <button className="btn btn-outline" onClick={downloadTemplate} style={{ color: 'var(--success)', borderColor: 'var(--success)' }}>
+            <Download size={16} /> Tải file mẫu
+          </button>
+          
+          <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()}>
+            <Upload size={16} /> Nhập từ Excel
+          </button>
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            accept=".xlsx, .xls, .csv" 
+            style={{ display: 'none' }} 
+          />
+          
+          <button className="btn btn-primary" onClick={openAddModal}>
+            <Plus size={16} /> Thêm nhân viên
+          </button>
+        </div>
       </div>
 
       <div className="card">

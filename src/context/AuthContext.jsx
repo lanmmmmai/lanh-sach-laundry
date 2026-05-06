@@ -83,6 +83,20 @@ export const AuthProvider = ({ children }) => {
     } catch (e) {}
   };
 
+  const updateUser = async (id, updatedData) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/users/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedData)
+      });
+      if (res.ok) {
+        setUsers(users.map(u => u.id === id ? { ...u, ...updatedData } : u));
+        if (user && user.id === id) setUser({ ...user, ...updatedData });
+      }
+    } catch (e) {}
+  };
+
   const deleteStaff = async (id) => {
     try {
       const res = await fetch(`http://localhost:3001/api/users/${id}`, { method: 'DELETE' });
@@ -92,10 +106,19 @@ export const AuthProvider = ({ children }) => {
     } catch (e) {}
   };
 
+  const importStaff = async (newStaff) => {
+    const r = await fetch('http://localhost:3001/api/users/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newStaff) });
+    if(r.ok) {
+      const res = await fetch('http://localhost:3001/api/users');
+      const data = await res.json();
+      setUsers(data);
+    }
+  };
+
   const logout = () => setUser(null);
 
   return (
-    <AuthContext.Provider value={{ user, users, login, registerAdmin, addStaff, updateStaff, deleteStaff, logout }}>
+    <AuthContext.Provider value={{ user, users, login, registerAdmin, addStaff, updateStaff, updateUser, deleteStaff, importStaff, logout }}>
       {children}
     </AuthContext.Provider>
   );

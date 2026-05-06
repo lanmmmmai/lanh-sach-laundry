@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useData } from '../context/DataContext';
-import { Plus, MapPin } from 'lucide-react';
+import { Plus, Download, Upload, MapPin } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 const Branches = () => {
-  const { branches, addBranch, updateBranch, deleteBranch } = useData();
+  const { branches, addBranch, updateBranch, deleteBranch, importBranches } = useData();
   const [showModal, setShowModal] = useState(false);
   const [newBranch, setNewBranch] = useState({ name: '', address: '' });
   const [editingId, setEditingId] = useState(null);
+  const fileInputRef = useRef(null);
 
   const openAddModal = () => {
     setEditingId(null);
@@ -38,13 +40,67 @@ const Branches = () => {
     setEditingId(null);
   };
 
+  const downloadTemplate = () => {
+    const templateData = [
+      { "Tên cơ sở": "Cơ sở 1", "Địa chỉ": "123 Đường A, Quận 1, TP.HCM" }
+    ];
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "CoSo");
+    XLSX.writeFile(wb, "Mau_Nhap_Co_So.xlsx");
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const data = evt.target.result;
+      const workbook = XLSX.read(data, { type: 'binary' });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+      
+      const newBranchesList = jsonData.map((item) => ({
+        name: item["Tên cơ sở"] || item["Ten co so"] || "Không tên",
+        address: item["Địa chỉ"] || item["Dia chi"] || "Chưa có địa chỉ"
+      }));
+      
+      if (newBranchesList.length > 0) {
+        importBranches(newBranchesList);
+        alert(`Đã nhập thành công ${newBranchesList.length} cơ sở từ file Excel!`);
+      }
+      
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    reader.readAsBinaryString(file);
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h2>Quản lý Cơ Sở (Chi nhánh)</h2>
-        <button className="btn btn-primary" onClick={openAddModal}>
-          <Plus size={16} /> Thêm cơ sở
-        </button>
+        <div className="flex gap-2">
+          <button className="btn btn-outline" onClick={downloadTemplate} style={{ color: 'var(--success)', borderColor: 'var(--success)' }}>
+            <Download size={16} /> Tải file mẫu
+          </button>
+          
+          <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()}>
+            <Upload size={16} /> Nhập từ Excel
+          </button>
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            accept=".xlsx, .xls, .csv" 
+            style={{ display: 'none' }} 
+          />
+          
+          <button className="btn btn-primary" onClick={openAddModal}>
+            <Plus size={16} /> Thêm cơ sở
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-6">

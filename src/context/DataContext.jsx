@@ -76,10 +76,28 @@ export const DataProvider = ({ children }) => {
     }
   };
 
+  const importBranches = async (newBranches) => {
+    const r = await fetch('http://localhost:3001/api/branches/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newBranches) });
+    if(r.ok) {
+      const res = await fetch('http://localhost:3001/api/branches');
+      const data = await res.json();
+      setBranches(data);
+    }
+  };
+
+  const importOrders = async (newOrders) => {
+    const r = await fetch('http://localhost:3001/api/orders/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newOrders) });
+    if(r.ok) {
+      const res = await fetch('http://localhost:3001/api/orders');
+      const data = await res.json();
+      setOrders(data);
+    }
+  };
+
   return (
     <DataContext.Provider value={{ 
-      branches, addBranch, updateBranch, deleteBranch,
-      orders, addOrder, updateOrder, deleteOrder, 
+      branches, addBranch, updateBranch, deleteBranch, importBranches,
+      orders, addOrder, updateOrder, deleteOrder, importOrders,
       services, addService, updateService, deleteService, importServices,
       customers, addCustomer
     }}>

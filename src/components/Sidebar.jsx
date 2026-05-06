@@ -15,8 +15,8 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       { path: '/services', name: 'Dịch vụ', icon: <List size={20} /> },
       { path: '/branches', name: 'Cơ sở', icon: <Building2 size={20} /> },
       { path: '/staff', name: 'Nhân viên', icon: <Users size={20} /> },
-      { path: '/settings', name: 'Cài đặt', icon: <Settings size={20} /> }
-    ] : [])
+    ] : []),
+    { path: '/settings', name: 'Cài đặt', icon: <Settings size={20} /> }
   ];
 
   return (
