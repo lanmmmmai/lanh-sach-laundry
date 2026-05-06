@@ -73,15 +73,19 @@ const Services = () => {
       const worksheet = workbook.Sheets[firstSheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
       
-      const newServicesList = jsonData.map((item, index) => ({
-        id: Date.now() + index,
-        name: item["Tên dịch vụ"] || item["Ten dich vu"] || "Không tên",
-        price: parseInt(item["Giá (đ/kg)"] || item["Gia"] || 0)
-      }));
+      const newServicesList = jsonData.map((item, index) => {
+        const parsedPrice = item["Giá (đ/kg)"] ?? item["Đơn giá (VNĐ/kg)"] ?? item["Gia"] ?? item["Đơn giá"] ?? item["Giá"] ?? item["Đơn giá (VNĐ)"] ?? 0;
+        return {
+          id: Date.now() + index,
+          name: item["Tên dịch vụ"] || item["Ten dich vu"] || "Không tên",
+          price: parseInt(parsedPrice) || 0
+        };
+      });
       
       if (newServicesList.length > 0) {
-        importServices(newServicesList);
-        alert(`Đã nhập thành công ${newServicesList.length} dịch vụ từ file Excel!`);
+        importServices(newServicesList).then(() => {
+          alert(`Đã nhập thành công ${newServicesList.length} dịch vụ từ file Excel!`);
+        });
       }
       
       if (fileInputRef.current) fileInputRef.current.value = "";

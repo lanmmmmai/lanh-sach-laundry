@@ -75,8 +75,9 @@ const Branches = () => {
       }));
       
       if (newBranchesList.length > 0) {
-        importBranches(newBranchesList);
-        alert(`Đã nhập thành công ${newBranchesList.length} cơ sở từ file Excel!`);
+        importBranches(newBranchesList).then(() => {
+          alert(`Đã nhập thành công ${newBranchesList.length} cơ sở từ file Excel!`);
+        });
       }
       
       if (fileInputRef.current) fileInputRef.current.value = "";

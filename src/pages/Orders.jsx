@@ -214,8 +214,10 @@ const Orders = () => {
                 </td>
                 <td>
                   <div className="flex gap-2">
-                    <button className="btn btn-outline" onClick={() => openEditModal(order)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>Sửa</button>
-                    <button className="btn btn-outline" onClick={() => handleDelete(order.id)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--danger)', borderColor: 'var(--danger)' }}>Xóa</button>
+                    <button className="btn btn-outline" onClick={() => openEditModal(order)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>Cập nhật</button>
+                    {user?.role === 'admin' && (
+                      <button className="btn btn-outline" onClick={() => handleDelete(order.id)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--danger)', borderColor: 'var(--danger)' }}>Xóa</button>
+                    )}
                   </div>
                 </td>
               </tr>
