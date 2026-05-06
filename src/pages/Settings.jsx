@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Settings as SettingsIcon, Save } from 'lucide-react';
 
 const Settings = () => {
-  const { user, updateUser, registerAdmin, isMainAdmin } = useAuth();
+  const { user, updateUser, createIndependentAdmin, isMainAdmin } = useAuth();
   
   const [name, setName] = useState(user?.name || '');
   const [password, setPassword] = useState(user?.password || '');
@@ -23,9 +23,9 @@ const Settings = () => {
 
   const handleAddAdmin = async (e) => {
     e.preventDefault();
-    const ok = await registerAdmin(newAdminEmail, newAdminPass, newAdminName);
+    const ok = await createIndependentAdmin(newAdminEmail, newAdminPass, newAdminName);
     if (ok) {
-      setAdminMessage('Thêm tài khoản Admin thành công!');
+      setAdminMessage('Tạo Tài khoản độc lập thành công!');
       setNewAdminEmail('');
       setNewAdminName('');
       setNewAdminPass('');
@@ -58,7 +58,7 @@ const Settings = () => {
             
             <div className="input-group">
               <label className="input-label">Vai trò</label>
-              <input type="text" className="input-field" value={user?.role === 'admin' ? (isMainAdmin ? 'Tài khoản Chính (Super Admin)' : 'Quản trị viên (Admin)') : 'Nhân viên (Staff)'} disabled style={{ backgroundColor: '#f3f4f6' }} />
+              <input type="text" className="input-field" value={user?.role === 'admin' ? 'Chủ Tiệm (Admin)' : 'Nhân viên (Staff)'} disabled style={{ backgroundColor: '#f3f4f6' }} />
             </div>
 
             <div className="input-group">
@@ -91,7 +91,8 @@ const Settings = () => {
 
         {isMainAdmin && (
           <div className="card">
-            <h3 className="mb-4">Thêm tài khoản Admin</h3>
+            <h3 className="mb-4">Tạo tài khoản Admin (Độc lập)</h3>
+            <p className="text-sm text-muted mb-4">Tài khoản này sẽ có dữ liệu, cửa hàng và nhân viên hoàn toàn tách biệt.</p>
             {adminMessage && <div style={{ padding: '0.75rem', backgroundColor: adminMessage.includes('thành công') ? '#dcfce3' : '#fee2e2', color: adminMessage.includes('thành công') ? '#166534' : '#991b1b', borderRadius: 'var(--radius-md)', marginBottom: '1rem', fontSize: '0.875rem' }}>{adminMessage}</div>}
             
             <form onSubmit={handleAddAdmin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

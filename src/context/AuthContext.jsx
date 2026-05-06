@@ -19,11 +19,14 @@ export const AuthProvider = ({ children }) => {
   }, [user]);
 
   useEffect(() => {
-    fetch('http://localhost:3001/api/users')
-      .then(res => res.json())
-      .then(data => setUsers(data))
-      .catch(console.error);
-  }, []);
+    if (user) {
+      const adminId = user.role === 'admin' ? user.id : (user.adminId || 1);
+      fetch(`http://localhost:3001/api/users?adminId=${adminId}`)
+        .then(res => res.json())
+        .then(data => setUsers(data))
+        .catch(console.error);
+    }
+  }, [user]);
 
   const login = async (email, password) => {
     try {
@@ -52,6 +55,18 @@ export const AuthProvider = ({ children }) => {
       if (!res.ok) return false;
       setUsers([...users, data]);
       setUser(data);
+      return true;
+    } catch (e) { return false; }
+  };
+
+  const createIndependentAdmin = async (email, password, name) => {
+    try {
+      const res = await fetch('http://localhost:3001/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, role: 'admin', name, branchId: null })
+      });
+      if (!res.ok) return false;
       return true;
     } catch (e) { return false; }
   };
@@ -117,10 +132,10 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => setUser(null);
 
-  const isMainAdmin = user?.id === 1;
+  const isMainAdmin = user?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ user, users, login, registerAdmin, addStaff, updateStaff, updateUser, deleteStaff, importStaff, logout, isMainAdmin }}>
+    <AuthContext.Provider value={{ user, users, login, registerAdmin, createIndependentAdmin, addStaff, updateStaff, updateUser, deleteStaff, importStaff, logout, isMainAdmin }}>
       {children}
     </AuthContext.Provider>
   );

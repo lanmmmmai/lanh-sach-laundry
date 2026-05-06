@@ -105,6 +105,12 @@ const db = new sqlite3.Database(path.join(dbDir, 'database.sqlite'), (err) => {
       db.run("ALTER TABLE orders ADD COLUMN branchId INTEGER", (err) => {});
       db.run("ALTER TABLE orders ADD COLUMN isHidden INTEGER DEFAULT 0", (err) => {});
 
+      // Multi-tenant migration: Add adminId to all tables
+      const tables = ['users', 'shifts', 'shift_templates', 'branches', 'services', 'customers', 'orders'];
+      tables.forEach(table => {
+        db.run(`ALTER TABLE ${table} ADD COLUMN adminId INTEGER DEFAULT 1`, (err) => {});
+      });
+
       db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
         if (row && row.count === 0) {
           db.run('INSERT INTO users (email, password, role, name, branchIds, salaryType) VALUES (?, ?, ?, ?, ?, ?)', 
@@ -132,7 +138,8 @@ const getQuery = (sql, params = []) => new Promise((resolve, reject) => {
 
 app.get('/api/users', async (req, res) => {
   try {
-    const users = await getQuery('SELECT * FROM users');
+    const adminId = req.query.adminId || 1;
+    const users = await getQuery('SELECT * FROM users WHERE adminId = ? OR id = ?', [adminId, adminId]);
     res.json(users);
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
@@ -153,9 +160,17 @@ app.post('/api/users', async (req, res) => {
     if (existing.length > 0) return res.status(400).json({ error: 'Email đã tồn tại' });
     
     const bIds = branchIds ? JSON.stringify(branchIds) : '[]';
-    const result = await runQuery('INSERT INTO users (email, password, role, name, branchId, branchIds, salaryType, salaryRate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
-      [email, password, role, name, branchId, bIds, salaryType || 'parttime', salaryRate || 0]);
-    res.json({ id: result.lastID, email, password, role, name, branchId, branchIds: JSON.parse(bIds), salaryType, salaryRate });
+    const adminIdToInsert = req.body.adminId || null;
+    const result = await runQuery('INSERT INTO users (email, password, role, name, branchId, branchIds, salaryType, salaryRate, adminId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+      [email, password, role, name, branchId, bIds, salaryType || 'parttime', salaryRate || 0, adminIdToInsert]);
+    
+    let finalAdminId = adminIdToInsert;
+    if (role === 'admin') {
+      finalAdminId = result.lastID;
+      await runQuery('UPDATE users SET adminId = ? WHERE id = ?', [finalAdminId, result.lastID]);
+    }
+
+    res.json({ id: result.lastID, email, password, role, name, branchId, branchIds: JSON.parse(bIds), salaryType, salaryRate, adminId: finalAdminId });
   } catch (error) { res.status(500).json({ error: error.message }); }
 });
 
@@ -180,14 +195,15 @@ app.post('/api/users/bulk', async (req, res) => {
   try {
     const users = req.body;
     for (const u of users) {
+      const adminId = u.adminId || 1;
       const bIds = u.branchIds ? JSON.stringify(u.branchIds) : '[]';
       const existing = await getQuery("SELECT id FROM users WHERE email = ? OR name = ?", [u.email, u.name]);
       if (existing.length > 0) {
-        await runQuery('UPDATE users SET password = ?, name = ?, branchId = ?, branchIds = ?, salaryType = ?, salaryRate = ? WHERE id = ?', 
-          [u.password, u.name, u.branchId || null, bIds, u.salaryType || 'parttime', u.salaryRate || 0, existing[0].id]);
+        await runQuery('UPDATE users SET password = ?, name = ?, branchId = ?, branchIds = ?, salaryType = ?, salaryRate = ?, adminId = ? WHERE id = ?', 
+          [u.password, u.name, u.branchId || null, bIds, u.salaryType || 'parttime', u.salaryRate || 0, adminId, existing[0].id]);
       } else {
-        await runQuery('INSERT INTO users (email, password, role, name, branchId, branchIds, salaryType, salaryRate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
-          [u.email, u.password, 'staff', u.name, u.branchId || null, bIds, u.salaryType || 'parttime', u.salaryRate || 0]);
+        await runQuery('INSERT INTO users (email, password, role, name, branchId, branchIds, salaryType, salaryRate, adminId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+          [u.email, u.password, 'staff', u.name, u.branchId || null, bIds, u.salaryType || 'parttime', u.salaryRate || 0, adminId]);
       }
     }
     res.json({ success: true });
@@ -196,14 +212,15 @@ app.post('/api/users/bulk', async (req, res) => {
 
 // SHIFTS
 app.get('/api/shifts', async (req, res) => {
-  const data = await getQuery('SELECT * FROM shifts');
+  const adminId = req.query.adminId || 1;
+  const data = await getQuery('SELECT * FROM shifts WHERE adminId = ?', [adminId]);
   res.json(data);
 });
 app.post('/api/shifts', async (req, res) => {
-  const { staffId, branchId, date, startTime, endTime, status, shiftName } = req.body;
-  const result = await runQuery('INSERT INTO shifts (staffId, branchId, date, startTime, endTime, status, shiftName) VALUES (?, ?, ?, ?, ?, ?, ?)', 
-    [staffId, branchId, date, startTime, endTime, status || 'Pending', shiftName || '']);
-  res.json({ id: result.lastID, staffId, branchId, date, startTime, endTime, status, shiftName });
+  const { staffId, branchId, date, startTime, endTime, status, shiftName, adminId } = req.body;
+  const result = await runQuery('INSERT INTO shifts (staffId, branchId, date, startTime, endTime, status, shiftName, adminId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
+    [staffId, branchId, date, startTime, endTime, status || 'Pending', shiftName || '', adminId || 1]);
+  res.json({ id: result.lastID, staffId, branchId, date, startTime, endTime, status, shiftName, adminId: adminId || 1 });
 });
 app.put('/api/shifts/:id', async (req, res) => {
   const { actualStartTime, actualEndTime, status } = req.body;
@@ -218,14 +235,15 @@ app.delete('/api/shifts/:id', async (req, res) => {
 
 // SHIFT TEMPLATES
 app.get('/api/shift-templates', async (req, res) => {
-  const data = await getQuery('SELECT * FROM shift_templates');
+  const adminId = req.query.adminId || 1;
+  const data = await getQuery('SELECT * FROM shift_templates WHERE adminId = ?', [adminId]);
   res.json(data);
 });
 app.post('/api/shift-templates', async (req, res) => {
-  const { name, startTime, endTime } = req.body;
-  const result = await runQuery('INSERT INTO shift_templates (name, startTime, endTime) VALUES (?, ?, ?)', 
-    [name, startTime, endTime]);
-  res.json({ id: result.lastID, name, startTime, endTime });
+  const { name, startTime, endTime, adminId } = req.body;
+  const result = await runQuery('INSERT INTO shift_templates (name, startTime, endTime, adminId) VALUES (?, ?, ?, ?)', 
+    [name, startTime, endTime, adminId || 1]);
+  res.json({ id: result.lastID, name, startTime, endTime, adminId: adminId || 1 });
 });
 app.delete('/api/shift-templates/:id', async (req, res) => {
   await runQuery('DELETE FROM shift_templates WHERE id = ?', [req.params.id]);
@@ -233,13 +251,14 @@ app.delete('/api/shift-templates/:id', async (req, res) => {
 });
 
 app.get('/api/branches', async (req, res) => {
-  const data = await getQuery('SELECT * FROM branches');
+  const adminId = req.query.adminId || 1;
+  const data = await getQuery('SELECT * FROM branches WHERE adminId = ?', [adminId]);
   res.json(data);
 });
 app.post('/api/branches', async (req, res) => {
-  const { name, address } = req.body;
-  const result = await runQuery('INSERT INTO branches (name, address) VALUES (?, ?)', [name, address]);
-  res.json({ id: result.lastID, name, address });
+  const { name, address, adminId } = req.body;
+  const result = await runQuery('INSERT INTO branches (name, address, adminId) VALUES (?, ?, ?)', [name, address, adminId || 1]);
+  res.json({ id: result.lastID, name, address, adminId: adminId || 1 });
 });
 app.put('/api/branches/:id', async (req, res) => {
   const { name, address } = req.body;
@@ -253,24 +272,26 @@ app.delete('/api/branches/:id', async (req, res) => {
 app.post('/api/branches/bulk', async (req, res) => {
   const branches = req.body;
   for (const b of branches) {
-    const existing = await getQuery('SELECT id FROM branches WHERE name = ?', [b.name]);
+    const adminId = b.adminId || 1;
+    const existing = await getQuery('SELECT id FROM branches WHERE name = ? AND adminId = ?', [b.name, adminId]);
     if (existing.length > 0) {
       await runQuery('UPDATE branches SET address = ? WHERE id = ?', [b.address, existing[0].id]);
     } else {
-      await runQuery('INSERT INTO branches (name, address) VALUES (?, ?)', [b.name, b.address]);
+      await runQuery('INSERT INTO branches (name, address, adminId) VALUES (?, ?, ?)', [b.name, b.address, adminId]);
     }
   }
   res.json({ success: true });
 });
 
 app.get('/api/services', async (req, res) => {
-  const data = await getQuery('SELECT * FROM services');
+  const adminId = req.query.adminId || 1;
+  const data = await getQuery('SELECT * FROM services WHERE adminId = ?', [adminId]);
   res.json(data);
 });
 app.post('/api/services', async (req, res) => {
-  const { name, price, unit, category } = req.body;
-  const result = await runQuery('INSERT INTO services (name, price, unit, category) VALUES (?, ?, ?, ?)', [name, price, unit, category]);
-  res.json({ id: result.lastID, name, price, unit, category });
+  const { name, price, unit, category, adminId } = req.body;
+  const result = await runQuery('INSERT INTO services (name, price, unit, category, adminId) VALUES (?, ?, ?, ?, ?)', [name, price, unit, category, adminId || 1]);
+  res.json({ id: result.lastID, name, price, unit, category, adminId: adminId || 1 });
 });
 app.put('/api/services/:id', async (req, res) => {
   const { name, price, unit, category } = req.body;
@@ -284,39 +305,42 @@ app.delete('/api/services/:id', async (req, res) => {
 app.post('/api/services/bulk', async (req, res) => {
   const services = req.body;
   for (const s of services) {
-    const existing = await getQuery('SELECT id FROM services WHERE name = ?', [s.name]);
+    const adminId = s.adminId || 1;
+    const existing = await getQuery('SELECT id FROM services WHERE name = ? AND adminId = ?', [s.name, adminId]);
     if (existing.length > 0) {
       await runQuery('UPDATE services SET price = ?, unit = ?, category = ? WHERE id = ?', [s.price, s.unit, s.category, existing[0].id]);
     } else {
-      await runQuery('INSERT INTO services (name, price, unit, category) VALUES (?, ?, ?, ?)', [s.name, s.price, s.unit, s.category]);
+      await runQuery('INSERT INTO services (name, price, unit, category, adminId) VALUES (?, ?, ?, ?, ?)', [s.name, s.price, s.unit, s.category, adminId]);
     }
   }
   res.json({ success: true });
 });
 
 app.get('/api/customers', async (req, res) => {
-  const data = await getQuery('SELECT * FROM customers');
+  const adminId = req.query.adminId || 1;
+  const data = await getQuery('SELECT * FROM customers WHERE adminId = ?', [adminId]);
   res.json(data);
 });
 app.post('/api/customers', async (req, res) => {
-  const { phone, name } = req.body;
+  const { phone, name, adminId } = req.body;
   try {
-    const result = await runQuery('INSERT INTO customers (phone, name) VALUES (?, ?)', [phone, name]);
-    res.json({ id: result.lastID, phone, name });
+    const result = await runQuery('INSERT INTO customers (phone, name, adminId) VALUES (?, ?, ?)', [phone, name, adminId || 1]);
+    res.json({ id: result.lastID, phone, name, adminId: adminId || 1 });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
 
 app.get('/api/orders', async (req, res) => {
-  const data = await getQuery('SELECT * FROM orders');
+  const adminId = req.query.adminId || 1;
+  const data = await getQuery('SELECT * FROM orders WHERE adminId = ?', [adminId]);
   res.json(data);
 });
 app.post('/api/orders', async (req, res) => {
   const o = req.body;
-  await runQuery(`INSERT INTO orders (id, createdAt, staff, customerName, customerPhone, service, weight, pricePerKg, surcharge, discount, totalPrice, paymentStatus, paymentMethod, status, returnDate, note, branchId, isHidden) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-    [o.id, o.createdAt, o.staff, o.customerName, o.customerPhone, o.service, o.weight, o.pricePerKg, o.surcharge, o.discount, o.totalPrice, o.paymentStatus, o.paymentMethod, o.status, o.returnDate, o.note, o.branchId || null, o.isHidden ? 1 : 0]
+  await runQuery(`INSERT INTO orders (id, createdAt, staff, customerName, customerPhone, service, weight, pricePerKg, surcharge, discount, totalPrice, paymentStatus, paymentMethod, status, returnDate, note, branchId, isHidden, adminId) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+    [o.id, o.createdAt, o.staff, o.customerName, o.customerPhone, o.service, o.weight, o.pricePerKg, o.surcharge, o.discount, o.totalPrice, o.paymentStatus, o.paymentMethod, o.status, o.returnDate, o.note, o.branchId || null, o.isHidden ? 1 : 0, o.adminId || 1]
   );
   res.json(o);
 });
@@ -334,15 +358,16 @@ app.delete('/api/orders/:id', async (req, res) => {
 app.post('/api/orders/bulk', async (req, res) => {
   const orders = req.body;
   for (const o of orders) {
-    const existing = await getQuery('SELECT id FROM orders WHERE id = ?', [o.id]);
+    const adminId = o.adminId || 1;
+    const existing = await getQuery('SELECT id FROM orders WHERE id = ? AND adminId = ?', [o.id, adminId]);
     if (existing.length > 0) {
       await runQuery(`UPDATE orders SET createdAt = ?, staff = ?, customerName = ?, customerPhone = ?, service = ?, weight = ?, pricePerKg = ?, surcharge = ?, discount = ?, totalPrice = ?, paymentStatus = ?, paymentMethod = ?, status = ?, returnDate = ?, note = ?, branchId = ?, isHidden = ? WHERE id = ?`, 
         [o.createdAt, o.staff, o.customerName, o.customerPhone, o.service, o.weight, o.pricePerKg, o.surcharge, o.discount, o.totalPrice, o.paymentStatus, o.paymentMethod, o.status, o.returnDate, o.note, o.branchId || null, o.isHidden ? 1 : 0, o.id]
       );
     } else {
-      await runQuery(`INSERT INTO orders (id, createdAt, staff, customerName, customerPhone, service, weight, pricePerKg, surcharge, discount, totalPrice, paymentStatus, paymentMethod, status, returnDate, note, branchId, isHidden) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
-        [o.id, o.createdAt, o.staff, o.customerName, o.customerPhone, o.service, o.weight, o.pricePerKg, o.surcharge, o.discount, o.totalPrice, o.paymentStatus, o.paymentMethod, o.status, o.returnDate, o.note, o.branchId || null, o.isHidden ? 1 : 0]
+      await runQuery(`INSERT INTO orders (id, createdAt, staff, customerName, customerPhone, service, weight, pricePerKg, surcharge, discount, totalPrice, paymentStatus, paymentMethod, status, returnDate, note, branchId, isHidden, adminId) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, 
+        [o.id, o.createdAt, o.staff, o.customerName, o.customerPhone, o.service, o.weight, o.pricePerKg, o.surcharge, o.discount, o.totalPrice, o.paymentStatus, o.paymentMethod, o.status, o.returnDate, o.note, o.branchId || null, o.isHidden ? 1 : 0, adminId]
       );
     }
   }
