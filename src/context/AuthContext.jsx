@@ -1,14 +1,32 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    const savedUser = localStorage.getItem('laundry_user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   
   // Mock Database for users
-  const [users, setUsers] = useState([
-    { id: 1, email: 'admin@test.com', password: '123', role: 'admin', name: 'Chủ Tiệm', branchId: null },
-  ]);
+  const [users, setUsers] = useState(() => {
+    const savedUsers = localStorage.getItem('laundry_users');
+    return savedUsers ? JSON.parse(savedUsers) : [
+      { id: 1, email: 'admin@test.com', password: '123', role: 'admin', name: 'Chủ Tiệm', branchId: null },
+    ];
+  });
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('laundry_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('laundry_user');
+    }
+  }, [user]);
+
+  useEffect(() => {
+    localStorage.setItem('laundry_users', JSON.stringify(users));
+  }, [users]);
 
   const login = (email, password) => {
     const foundUser = users.find(u => u.email === email && u.password === password);

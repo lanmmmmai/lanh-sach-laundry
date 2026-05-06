@@ -1,13 +1,41 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { mockBranches as initialBranches, mockServices, mockOrders } from '../data/mockData';
 
 const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
-  const [branches, setBranches] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [services, setServices] = useState([]); // Empty initial list as requested
-  const [customers, setCustomers] = useState([]);
+  const [branches, setBranches] = useState(() => {
+    const saved = localStorage.getItem('laundry_branches');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [orders, setOrders] = useState(() => {
+    const saved = localStorage.getItem('laundry_orders');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [services, setServices] = useState(() => {
+    const saved = localStorage.getItem('laundry_services');
+    return saved ? JSON.parse(saved) : []; // Empty initial list as requested
+  });
+  const [customers, setCustomers] = useState(() => {
+    const saved = localStorage.getItem('laundry_customers');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('laundry_branches', JSON.stringify(branches));
+  }, [branches]);
+
+  useEffect(() => {
+    localStorage.setItem('laundry_orders', JSON.stringify(orders));
+  }, [orders]);
+
+  useEffect(() => {
+    localStorage.setItem('laundry_services', JSON.stringify(services));
+  }, [services]);
+
+  useEffect(() => {
+    localStorage.setItem('laundry_customers', JSON.stringify(customers));
+  }, [customers]);
 
   const addCustomer = (customer) => {
     // customer: { phone, name }
