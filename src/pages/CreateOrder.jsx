@@ -33,6 +33,9 @@ const CreateOrder = () => {
   
   const [isPaid, setIsPaid] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('Tiền mặt');
+
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [saveAction, setSaveAction] = useState(null);
   
   const selectedService = services.find(s => s.id === parseInt(serviceId)) || services.find(s => s.id === serviceId);
   const pricePerKg = selectedService ? selectedService.price : 0;
@@ -62,7 +65,7 @@ const CreateOrder = () => {
     alert("Thêm khách hàng thành công!");
   };
 
-  const handleSave = () => {
+  const handlePreSave = (action) => {
     if (!name || !phone || !selectedService) {
       alert("Vui lòng nhập tên, SĐT khách hàng và chọn dịch vụ!");
       return;
@@ -71,13 +74,15 @@ const CreateOrder = () => {
       alert("Vui lòng chọn cơ sở!");
       return;
     }
-    
+    setSaveAction(action);
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmSave = () => {
     // Tự động lưu khách hàng nếu chưa có khi tạo đơn (tùy chọn)
     if (!isExisting) {
       addCustomer({ phone, name });
     }
-    
-    const selectedBranch = branches.find(b => b.id === parseInt(branchId));
 
     addOrder({
       createdAt: new Date(receiveDate).toISOString(),
@@ -98,6 +103,11 @@ const CreateOrder = () => {
       note
     });
     
+    if (saveAction === 'print') {
+      alert("Đang in hóa đơn...");
+    }
+
+    setShowConfirmModal(false);
     navigate('/orders');
   };
 
@@ -247,16 +257,86 @@ const CreateOrder = () => {
             </div>
             
             <div className="flex flex-col gap-2 mt-6">
-              <button className="btn btn-primary w-full" onClick={handleSave}>
+              <button className="btn btn-primary w-full" onClick={() => handlePreSave('save')}>
                 <Save size={18} /> Lưu đơn hàng
               </button>
-              <button className="btn btn-outline w-full" onClick={handleSave}>
+              <button className="btn btn-outline w-full" onClick={() => handlePreSave('print')}>
                 <Printer size={18} /> Lưu & In hóa đơn
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      {showConfirmModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '500px' }}>
+            <h2 className="mb-4 text-xl">Xác nhận thông tin đơn hàng</h2>
+            
+            <div className="bg-main p-4 rounded-lg mb-4 text-sm space-y-2">
+              <div className="flex justify-between border-b pb-2 border-slate-700">
+                <span className="text-muted">Cơ sở:</span>
+                <span className="font-semibold text-right">{branches.find(b => b.id === parseInt(branchId))?.name}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2 border-slate-700">
+                <span className="text-muted">Khách hàng:</span>
+                <span className="font-semibold text-right">{name} - {phone}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2 border-slate-700">
+                <span className="text-muted">Dịch vụ:</span>
+                <span className="font-semibold text-right">{selectedService?.name}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2 border-slate-700">
+                <span className="text-muted">Chi tiết:</span>
+                <span className="font-semibold text-right">Cân nặng: {weight}kg</span>
+              </div>
+              <div className="flex justify-between border-b pb-2 border-slate-700">
+                <span className="text-muted">Thời gian nhận:</span>
+                <span className="font-semibold text-right">{new Date(receiveDate).toLocaleString('vi-VN')}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2 border-slate-700">
+                <span className="text-muted">Hẹn trả:</span>
+                <span className="font-semibold text-right">{new Date(returnDate).toLocaleString('vi-VN')}</span>
+              </div>
+              <div className="flex justify-between border-b pb-2 border-slate-700">
+                <span className="text-muted">Thanh toán:</span>
+                <span className={`font-semibold text-right ${isPaid ? 'text-success' : 'text-warning'}`}>
+                  {isPaid ? `Đã thanh toán (${paymentMethod})` : 'Chưa thanh toán'}
+                </span>
+              </div>
+              <div className="flex justify-between pt-2">
+                <span className="font-semibold text-lg">Tổng cộng:</span>
+                <span className="font-semibold text-xl text-primary">{Math.max(0, total).toLocaleString()} đ</span>
+              </div>
+              {note && (
+                <div className="mt-2 pt-2 border-t border-slate-700">
+                  <span className="text-muted block mb-1">Ghi chú:</span>
+                  <p className="font-semibold text-warning">{note}</p>
+                </div>
+              )}
+            </div>
+
+            <p className="text-center text-muted mb-6 text-sm">
+              Vui lòng kiểm tra kỹ các thông tin trên trước khi xác nhận tạo đơn.
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button 
+                className="btn btn-outline" 
+                onClick={() => setShowConfirmModal(false)}
+              >
+                Hủy, Sửa lại
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleConfirmSave}
+              >
+                Xác nhận tạo đơn
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
