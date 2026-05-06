@@ -23,9 +23,26 @@ const StatCard = ({ title, value, icon, color, subValue }) => (
 
 const Dashboard = () => {
   const { user, isMainAdmin } = useAuth();
-  const { orders, branches } = useData();
+  const { orders, branches, shifts } = useData();
+  const isAdmin = user?.role === 'admin';
   
-  const visibleOrders = isMainAdmin ? orders : orders.filter(o => !o.isHidden);
+  // Determine current branch for staff
+  const currentShift = shifts.find(s => s.staffId === user?.id && s.status === 'CheckedIn');
+  const staffBranchId = currentShift ? currentShift.branchId : null;
+  
+  const [selectedBranchId, setSelectedBranchId] = React.useState(isAdmin ? 'all' : (staffBranchId || 'all'));
+
+  // Sync staffBranchId if it changes
+  React.useEffect(() => {
+    if (!isAdmin && staffBranchId) {
+      setSelectedBranchId(staffBranchId);
+    }
+  }, [staffBranchId, isAdmin]);
+
+  const visibleOrders = (isMainAdmin ? orders : orders.filter(o => !o.isHidden)).filter(o => {
+    if (selectedBranchId === 'all') return true;
+    return o.branchId === parseInt(selectedBranchId);
+  });
   
   // Received Stats
   const receivedToday = visibleOrders.filter(o => o.createdAt && isToday(new Date(o.createdAt)));
@@ -79,14 +96,37 @@ const Dashboard = () => {
 
   return (
     <div style={{ paddingBottom: '2rem' }}>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-end mb-6">
         <div>
           <h2 className="mb-1 text-2xl font-bold">Tổng quan kinh doanh</h2>
           <p className="text-muted text-sm">Chào mừng quay lại, {user?.name}!</p>
         </div>
-        <button className="btn btn-outline" onClick={handleExportStats} style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}>
-          <FileDown size={18} /> Xuất thống kê Excel
-        </button>
+        
+        <div className="flex gap-3 items-end">
+          {isAdmin ? (
+            <div className="input-group mb-0">
+              <label className="input-label text-[10px] uppercase tracking-wider opacity-60">Xem theo cơ sở</label>
+              <select 
+                className="input-field py-1 px-3 h-10 min-w-[180px] bg-slate-800 border-slate-700"
+                value={selectedBranchId}
+                onChange={(e) => setSelectedBranchId(e.target.value)}
+              >
+                <option value="all">Tất cả cơ sở</option>
+                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </div>
+          ) : (
+            <div className="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2">
+              <span className="text-xs text-muted block">Cơ sở hiện tại</span>
+              <span className="font-bold text-primary">
+                {branches.find(b => b.id === parseInt(selectedBranchId))?.name || 'Chưa xác định'}
+              </span>
+            </div>
+          )}
+          <button className="btn btn-outline h-10" onClick={handleExportStats} style={{ borderColor: 'var(--primary)', color: 'var(--primary)' }}>
+            <FileDown size={18} /> Xuất thống kê
+          </button>
+        </div>
       </div>
       
       {/* Received Stats Row */}
