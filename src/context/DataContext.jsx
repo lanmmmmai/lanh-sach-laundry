@@ -4,6 +4,7 @@ const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
   const [branches, setBranches] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [services, setServices] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [shifts, setShifts] = useState([]);
