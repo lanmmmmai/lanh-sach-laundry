@@ -4,10 +4,10 @@ const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
   const [branches, setBranches] = useState([]);
-  const [orders, setOrders] = useState([]);
   const [services, setServices] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [shifts, setShifts] = useState([]);
+  const [shiftTemplates, setShiftTemplates] = useState([]);
 
   useEffect(() => {
     fetch('http://localhost:3001/api/branches').then(r => r.json()).then(setBranches).catch(console.error);
@@ -15,7 +15,18 @@ export const DataProvider = ({ children }) => {
     fetch('http://localhost:3001/api/services').then(r => r.json()).then(setServices).catch(console.error);
     fetch('http://localhost:3001/api/customers').then(r => r.json()).then(setCustomers).catch(console.error);
     fetch('http://localhost:3001/api/shifts').then(r => r.json()).then(setShifts).catch(console.error);
+    fetch('http://localhost:3001/api/shift-templates').then(r => r.json()).then(setShiftTemplates).catch(console.error);
   }, []);
+
+  const addShiftTemplate = async (template) => {
+    const r = await fetch('http://localhost:3001/api/shift-templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(template) });
+    const data = await r.json();
+    setShiftTemplates([...shiftTemplates, data]);
+  };
+  const deleteShiftTemplate = async (id) => {
+    await fetch(`http://localhost:3001/api/shift-templates/${id}`, { method: 'DELETE' });
+    setShiftTemplates(shiftTemplates.filter(t => t.id !== id));
+  };
 
   const addCustomer = async (customer) => {
     if (!customers.find(c => c.phone === customer.phone)) {
@@ -116,7 +127,8 @@ export const DataProvider = ({ children }) => {
       orders, addOrder, updateOrder, deleteOrder, importOrders,
       services, addService, updateService, deleteService, importServices,
       customers, addCustomer,
-      shifts, addShift, updateShift, deleteShift
+      shifts, addShift, updateShift, deleteShift,
+      shiftTemplates, addShiftTemplate, deleteShiftTemplate
     }}>
       {children}
     </DataContext.Provider>

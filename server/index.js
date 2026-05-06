@@ -49,8 +49,18 @@ const db = new sqlite3.Database(path.join(dbDir, 'database.sqlite'), (err) => {
         endTime TEXT,
         actualStartTime TEXT,
         actualEndTime TEXT,
-        status TEXT
+        status TEXT,
+        shiftName TEXT
       )`);
+
+      db.run(`CREATE TABLE IF NOT EXISTS shift_templates (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        startTime TEXT,
+        endTime TEXT
+      )`);
+
+      db.run("ALTER TABLE shifts ADD COLUMN shiftName TEXT", (err) => {});
 
       db.run(`CREATE TABLE IF NOT EXISTS branches (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -186,10 +196,10 @@ app.get('/api/shifts', async (req, res) => {
   res.json(data);
 });
 app.post('/api/shifts', async (req, res) => {
-  const { staffId, branchId, date, startTime, endTime, status } = req.body;
-  const result = await runQuery('INSERT INTO shifts (staffId, branchId, date, startTime, endTime, status) VALUES (?, ?, ?, ?, ?, ?)', 
-    [staffId, branchId, date, startTime, endTime, status || 'Pending']);
-  res.json({ id: result.lastID, staffId, branchId, date, startTime, endTime, status });
+  const { staffId, branchId, date, startTime, endTime, status, shiftName } = req.body;
+  const result = await runQuery('INSERT INTO shifts (staffId, branchId, date, startTime, endTime, status, shiftName) VALUES (?, ?, ?, ?, ?, ?, ?)', 
+    [staffId, branchId, date, startTime, endTime, status || 'Pending', shiftName || '']);
+  res.json({ id: result.lastID, staffId, branchId, date, startTime, endTime, status, shiftName });
 });
 app.put('/api/shifts/:id', async (req, res) => {
   const { actualStartTime, actualEndTime, status } = req.body;
@@ -199,6 +209,22 @@ app.put('/api/shifts/:id', async (req, res) => {
 });
 app.delete('/api/shifts/:id', async (req, res) => {
   await runQuery('DELETE FROM shifts WHERE id = ?', [req.params.id]);
+  res.json({ success: true });
+});
+
+// SHIFT TEMPLATES
+app.get('/api/shift-templates', async (req, res) => {
+  const data = await getQuery('SELECT * FROM shift_templates');
+  res.json(data);
+});
+app.post('/api/shift-templates', async (req, res) => {
+  const { name, startTime, endTime } = req.body;
+  const result = await runQuery('INSERT INTO shift_templates (name, startTime, endTime) VALUES (?, ?, ?)', 
+    [name, startTime, endTime]);
+  res.json({ id: result.lastID, name, startTime, endTime });
+});
+app.delete('/api/shift-templates/:id', async (req, res) => {
+  await runQuery('DELETE FROM shift_templates WHERE id = ?', [req.params.id]);
   res.json({ success: true });
 });
 
