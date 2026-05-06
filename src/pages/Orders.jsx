@@ -169,6 +169,8 @@ const Orders = () => {
           <thead>
             <tr>
               <th>Mã đơn</th>
+              <th>Ngày nhận</th>
+              <th>Ngày trả</th>
               <th>Cơ sở</th>
               <th>Khách hàng</th>
               <th>Dịch vụ</th>
@@ -187,6 +189,14 @@ const Orders = () => {
                 <td>
                   <div className="font-semibold">{order.id}</div>
                   <div className="text-xs text-muted">Bởi: {order.staff}</div>
+                </td>
+                <td>
+                  <div className="text-sm font-medium">{new Date(order.createdAt).toLocaleDateString('vi-VN')}</div>
+                  <div className="text-xs text-muted">{new Date(order.createdAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</div>
+                </td>
+                <td>
+                  <div className="text-sm font-medium">{order.returnDate ? new Date(order.returnDate).toLocaleDateString('vi-VN') : '-'}</div>
+                  <div className="text-xs text-muted">{order.returnDate ? new Date(order.returnDate).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : ''}</div>
                 </td>
                 <td>
                   <span className="badge badge-gray">{branchName}</span>
@@ -208,13 +218,12 @@ const Orders = () => {
                   <span className={`badge ${order.status === 'Đã giao khách' ? 'badge-success' : order.status === 'Mới tạo' ? 'badge-primary' : 'badge-warning'}`}>
                     {order.status}
                   </span>
-                  {order.returnDate && order.status !== 'Đã giao khách' && (
-                    <div className="text-xs text-muted mt-1">Trả: {new Date(order.returnDate).toLocaleDateString('vi-VN')}</div>
-                  )}
                 </td>
                 <td>
                   <div className="flex gap-2">
-                    <button className="btn btn-outline" onClick={() => openEditModal(order)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>Cập nhật</button>
+                    {!(user?.role !== 'admin' && order.status === 'Đã giao khách') && (
+                      <button className="btn btn-outline" onClick={() => openEditModal(order)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>Cập nhật</button>
+                    )}
                     {user?.role === 'admin' && (
                       <button className="btn btn-outline" onClick={() => handleDelete(order.id)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: 'var(--danger)', borderColor: 'var(--danger)' }}>Xóa</button>
                     )}
@@ -225,7 +234,7 @@ const Orders = () => {
             })}
             {paginatedOrders.length === 0 && (
               <tr>
-                <td colSpan="9" style={{ textAlign: 'center', padding: '2rem' }}>Chưa có đơn hàng nào.</td>
+                <td colSpan="11" style={{ textAlign: 'center', padding: '2rem' }}>Chưa có đơn hàng nào.</td>
               </tr>
             )}
           </tbody>
