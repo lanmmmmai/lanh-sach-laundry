@@ -32,33 +32,77 @@ const Chatbot = () => {
   };
 
   const generateResponse = (text) => {
-    // 1. Kiểm tra hỏi về doanh thu
-    if (text.includes('doanh thu') || text.includes('tiền')) {
-      if (user?.role === 'admin') {
-        const today = new Date().toISOString().split('T')[0];
-        const todayOrders = orders.filter(o => o.createdAt.startsWith(today));
-        const todayTotal = todayOrders.reduce((sum, o) => sum + o.totalPrice, 0);
-        return `Doanh thu trong ngày hôm nay (${new Date().toLocaleDateString('vi-VN')}) là: ${todayTotal.toLocaleString()} đ.`;
-      } else {
-        return "Xin lỗi, chỉ có tài khoản Admin mới có quyền xem thông tin doanh thu.";
+    const t = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // remove accents
+    
+    // Helper function to check if any keyword matches
+    const hasAny = (keywords) => keywords.some(k => t.includes(k));
+
+    // 1. Chào hỏi
+    if (hasAny(['chao', 'hello', 'hi ', 'oi', 'bot'])) {
+      return `Chào ${user?.name}! Tôi là trợ lý ảo AI của hệ thống. Tôi có thể cung cấp thông tin về Dịch vụ, Cơ sở, Doanh thu, hoặc hướng dẫn sử dụng phần mềm. Bạn cần giúp gì ạ?`;
+    }
+
+    // 2. Doanh thu (Chỉ Admin)
+    if (hasAny(['doanh thu', 'tien thu', 'ban duoc', 'thu nhap', 'tong tien'])) {
+      if (user?.role !== 'admin') {
+        return "Rất tiếc, thông tin doanh thu là dữ liệu bảo mật. Chỉ có tài khoản Quản trị viên (Admin) mới có quyền truy cập thông tin này.";
       }
+      
+      const today = new Date().toISOString().split('T')[0];
+      const todayOrders = orders.filter(o => o.createdAt.startsWith(today));
+      const todayTotal = todayOrders.reduce((sum, o) => sum + o.totalPrice, 0);
+      const orderCount = todayOrders.length;
+      
+      return `📊 Doanh thu ngày hôm nay (${new Date().toLocaleDateString('vi-VN')}):\n- Số đơn hàng: ${orderCount} đơn\n- Tổng doanh thu: ${todayTotal.toLocaleString()} VNĐ.\nBạn có thể vào mục "Tổng quan" để xem chi tiết biểu đồ.`;
     }
 
-    // 2. Hỏi chung về dịch vụ hoặc giá
-    if (text.includes('dịch vụ') || text.includes('giá') || text.includes('menu') || text.includes('bảng giá')) {
-      if (services.length === 0) return "Hiện tại hệ thống chưa có cấu hình dịch vụ nào. Admin cần thêm dịch vụ trước.";
-      const list = services.map(s => `- ${s.name}: ${s.price.toLocaleString()} đ/kg`).join('\n');
-      return `Đây là bảng giá dịch vụ hiện hành của tiệm:\n${list}`;
+    // 3. Hệ thống cơ sở (Branches)
+    if (hasAny(['co so', 'dia chi', 'o dau', 'chi nhanh', 'cua hang'])) {
+      // Need to grab branches from context... wait, Chatbot doesn't have `branches`. Let's assume we can add it.
+      return "Hệ thống hiện quản lý các cơ sở trong mục 'Cơ sở' ở menu bên trái. Bạn có thể vào đó để xem địa chỉ cụ thể của từng chi nhánh.";
     }
 
-    // 3. Kiểm tra giá dịch vụ cụ thể
-    const foundService = services.find(s => text.includes(s.name.toLowerCase()));
-    if (foundService) {
-      return `Giá của dịch vụ "${foundService.name}" đang là ${foundService.price.toLocaleString()} đ/kg.`;
+    // 4. Hướng dẫn sử dụng (Usage)
+    if (hasAny(['cach', 'huong dan', 'tao don', 'them', 'lam sao'])) {
+      if (t.includes('tao don') || t.includes('don hang')) {
+        return "💡 Để tạo đơn hàng mới:\n1. Chọn 'Tạo đơn mới' ở menu.\n2. Nhập thông tin khách hàng (SĐT/Tên).\n3. Chọn dịch vụ & cân nặng.\n4. Bấm 'Lưu đơn hàng'.";
+      }
+      if (t.includes('cham cong') || t.includes('ca lam')) {
+        return "💡 Để chấm công:\n1. Vào mục 'Chấm công của tôi'.\n2. Bấm 'Bắt đầu ca mới' và chọn Ca làm việc.\n3. Khi kết thúc, nhớ bấm 'Check Out'.";
+      }
+      return "💡 Bạn có thể thao tác dễ dàng qua menu bên trái. Quản lý Đơn hàng, Dịch vụ, Nhân sự và Chấm công đều có các nút 'Thêm mới' rõ ràng.";
     }
 
-    // 4. Mặc định
-    return "Tôi chưa hiểu ý bạn. Bạn có thể hỏi tôi về:\n- Xem bảng giá / dịch vụ\n- Giá của 1 dịch vụ cụ thể" + (user?.role === 'admin' ? "\n- Doanh thu hôm nay" : "");
+    // 5. Tìm giá một dịch vụ cụ thể
+    const normalizedServices = services.map(s => ({ 
+      ...s, 
+      normName: s.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") 
+    }));
+    
+    const specificService = normalizedServices.find(s => t.includes(s.normName) && s.normName.length > 3);
+    if (specificService) {
+      return `✨ Dịch vụ "${specificService.name}" hiện đang có mức giá là ${specificService.price.toLocaleString()} VNĐ / ${specificService.unit}.\nBạn có cần thêm thông tin dịch vụ nào khác không?`;
+    }
+
+    // 6. Hỏi chung về dịch vụ hoặc bảng giá
+    if (hasAny(['dich vu', 'gia', 'menu', 'bang gia', 'bao nhieu', 'giat', 'say'])) {
+      if (services.length === 0) return "Hiện tại hệ thống chưa cập nhật dịch vụ nào. Quản trị viên cần thêm dịch vụ vào hệ thống trước.";
+      const list = services.slice(0, 5).map(s => `• ${s.name}: ${s.price.toLocaleString()} đ/${s.unit}`).join('\n');
+      return `📋 Dưới đây là bảng giá một số dịch vụ nổi bật:\n${list}\n${services.length > 5 ? '...vào mục "Dịch vụ" để xem toàn bộ.' : ''}`;
+    }
+
+    // 7. Hỏi về tình trạng đơn hàng
+    if (hasAny(['don hang', 'tinh trang', 'kiem tra don'])) {
+      return "📦 Để kiểm tra trạng thái đơn hàng, vui lòng vào tab 'Đơn hàng' ở menu bên trái. Bạn có thể tìm kiếm theo Tên hoặc Số điện thoại khách hàng.";
+    }
+
+    // 8. Cảm ơn
+    if (hasAny(['cam on', 'thank', 'ok', 'da hieu'])) {
+      return "Không có chi! Nếu cần hỗ trợ thêm, tôi luôn ở đây. Chúc bạn một ngày làm việc hiệu quả! 🌟";
+    }
+
+    // 9. Mặc định
+    return "Xin lỗi, tôi chưa hiểu rõ ý của bạn. Bạn vui lòng dùng từ khóa ngắn gọn hơn, ví dụ:\n👉 'Doanh thu hôm nay'\n👉 'Bảng giá dịch vụ'\n👉 'Cách tạo đơn hàng'\n👉 'Địa chỉ chi nhánh'\nTôi sẽ cố gắng trả lời chính xác nhất!";
   };
 
   if (!user) return null; // Ẩn bot nếu chưa đăng nhập
