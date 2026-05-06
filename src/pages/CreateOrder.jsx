@@ -14,6 +14,16 @@ const CreateOrder = () => {
   
   const [branchId, setBranchId] = useState(currentBranch ? currentBranch.id : (branches.length > 0 ? branches[0].id : ''));
 
+  React.useEffect(() => {
+    if (!branchId && branches.length > 0) {
+      if (user?.role === 'admin') {
+        setBranchId(branches[0].id);
+      } else if (currentBranch) {
+        setBranchId(currentBranch.id);
+      }
+    }
+  }, [branches, branchId, user?.role, currentBranch]);
+
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [isExisting, setIsExisting] = useState(false);
