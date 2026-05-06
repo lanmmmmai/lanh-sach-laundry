@@ -1,83 +1,79 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { mockBranches as initialBranches, mockServices, mockOrders } from '../data/mockData';
 
 const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
-  const [branches, setBranches] = useState(() => {
-    const saved = localStorage.getItem('laundry_branches');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [orders, setOrders] = useState(() => {
-    const saved = localStorage.getItem('laundry_orders');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const [services, setServices] = useState(() => {
-    const saved = localStorage.getItem('laundry_services');
-    return saved ? JSON.parse(saved) : []; // Empty initial list as requested
-  });
-  const [customers, setCustomers] = useState(() => {
-    const saved = localStorage.getItem('laundry_customers');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [branches, setBranches] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [services, setServices] = useState([]);
+  const [customers, setCustomers] = useState([]);
 
   useEffect(() => {
-    localStorage.setItem('laundry_branches', JSON.stringify(branches));
-  }, [branches]);
+    fetch('http://localhost:3001/api/branches').then(r => r.json()).then(setBranches).catch(console.error);
+    fetch('http://localhost:3001/api/orders').then(r => r.json()).then(setOrders).catch(console.error);
+    fetch('http://localhost:3001/api/services').then(r => r.json()).then(setServices).catch(console.error);
+    fetch('http://localhost:3001/api/customers').then(r => r.json()).then(setCustomers).catch(console.error);
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem('laundry_orders', JSON.stringify(orders));
-  }, [orders]);
-
-  useEffect(() => {
-    localStorage.setItem('laundry_services', JSON.stringify(services));
-  }, [services]);
-
-  useEffect(() => {
-    localStorage.setItem('laundry_customers', JSON.stringify(customers));
-  }, [customers]);
-
-  const addCustomer = (customer) => {
-    // customer: { phone, name }
+  const addCustomer = async (customer) => {
     if (!customers.find(c => c.phone === customer.phone)) {
-      setCustomers([...customers, { id: Date.now(), ...customer }]);
+      const r = await fetch('http://localhost:3001/api/customers', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(customer)
+      });
+      const data = await r.json();
+      if(r.ok) setCustomers([...customers, data]);
     }
   };
 
-  const addBranch = (branch) => {
-    setBranches([...branches, { id: Date.now(), ...branch }]);
+  const addBranch = async (branch) => {
+    const r = await fetch('http://localhost:3001/api/branches', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(branch) });
+    const data = await r.json();
+    setBranches([...branches, data]);
   };
-  const updateBranch = (id, updatedBranch) => {
+  const updateBranch = async (id, updatedBranch) => {
+    await fetch(`http://localhost:3001/api/branches/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedBranch) });
     setBranches(branches.map(b => b.id === id ? { ...b, ...updatedBranch } : b));
   };
-  const deleteBranch = (id) => {
+  const deleteBranch = async (id) => {
+    await fetch(`http://localhost:3001/api/branches/${id}`, { method: 'DELETE' });
     setBranches(branches.filter(b => b.id !== id));
   };
 
-  const addOrder = (order) => {
-    setOrders([...orders, { ...order, id: `LD-${new Date().getFullYear()}-${String(orders.length + 1).padStart(4, '0')}` }]);
+  const addOrder = async (order) => {
+    const o = { ...order, id: `LD-${new Date().getFullYear()}-${String(orders.length + 1).padStart(4, '0')}` };
+    await fetch('http://localhost:3001/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(o) });
+    setOrders([...orders, o]);
   };
-  const updateOrder = (id, updatedOrder) => {
+  const updateOrder = async (id, updatedOrder) => {
+    await fetch(`http://localhost:3001/api/orders/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedOrder) });
     setOrders(orders.map(o => o.id === id ? { ...o, ...updatedOrder } : o));
   };
-  const deleteOrder = (id) => {
+  const deleteOrder = async (id) => {
+    await fetch(`http://localhost:3001/api/orders/${id}`, { method: 'DELETE' });
     setOrders(orders.filter(o => o.id !== id));
   };
 
-  const addService = (service) => {
-    setServices([...services, { id: Date.now(), ...service }]);
+  const addService = async (service) => {
+    const r = await fetch('http://localhost:3001/api/services', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(service) });
+    const data = await r.json();
+    setServices([...services, data]);
   };
-
-  const updateService = (id, updatedService) => {
+  const updateService = async (id, updatedService) => {
+    await fetch(`http://localhost:3001/api/services/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedService) });
     setServices(services.map(s => s.id === id ? { ...s, ...updatedService } : s));
   };
-
-  const deleteService = (id) => {
+  const deleteService = async (id) => {
+    await fetch(`http://localhost:3001/api/services/${id}`, { method: 'DELETE' });
     setServices(services.filter(s => s.id !== id));
   };
 
-  const importServices = (newServices) => {
-    setServices(newServices);
+  const importServices = async (newServices) => {
+    const r = await fetch('http://localhost:3001/api/services/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newServices) });
+    if(r.ok) {
+      const res = await fetch('http://localhost:3001/api/services');
+      const data = await res.json();
+      setServices(data);
+    }
   };
 
   return (
