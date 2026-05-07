@@ -253,8 +253,8 @@ const StaffManagement = () => {
       </div>
 
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div className="card" style={{ width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '600px' }}>
             <h3 className="mb-4">{editingId ? 'Sửa Nhân viên' : 'Thêm Nhân viên mới'}</h3>
             {error && <div style={{ color: 'var(--danger)', marginBottom: '1rem', fontSize: '0.875rem', padding: '0.5rem', backgroundColor: '#fee2e2', borderRadius: '4px' }}>{error}</div>}
             

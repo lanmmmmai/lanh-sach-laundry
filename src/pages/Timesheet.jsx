@@ -82,6 +82,43 @@ const Timesheet = () => {
     return Math.round(totalHours * (staff.salaryRate || 0));
   };
 
+  const getMonthlySalaryData = (staffId) => {
+    const staff = users.find(u => u.id === staffId);
+    if (!staff) return [];
+
+    const staffShifts = shifts.filter(s => s.staffId === staffId && s.status === 'Completed');
+    const monthlyData = {};
+
+    staffShifts.forEach(s => {
+      const date = new Date(s.date);
+      const monthYear = `${date.getMonth() + 1}/${date.getFullYear()}`;
+      
+      if (!monthlyData[monthYear]) {
+        monthlyData[monthYear] = { monthYear, totalHours: 0, totalSalary: 0 };
+      }
+
+      if (s.actualStartTime && s.actualEndTime) {
+        const t1 = new Date(`1970-01-01T${s.actualStartTime}`);
+        const t2 = new Date(`1970-01-01T${s.actualEndTime}`);
+        const diff = (t2 - t1) / (1000 * 60 * 60);
+        if (diff > 0) monthlyData[monthYear].totalHours += diff;
+      }
+    });
+
+    return Object.values(monthlyData).map(data => {
+      if (staff.salaryType === 'fulltime') {
+        data.totalSalary = staff.salaryRate || 0;
+      } else {
+        data.totalSalary = Math.round(data.totalHours * (staff.salaryRate || 0));
+      }
+      return data;
+    }).sort((a, b) => {
+      const [mA, yA] = a.monthYear.split('/').map(Number);
+      const [mB, yB] = b.monthYear.split('/').map(Number);
+      return new Date(yB, mB - 1) - new Date(yA, mA - 1);
+    });
+  };
+
   // Allow check-in update right away manually
   const doCheckInManual = (shiftId) => {
     updateShift(shiftId, { actualStartTime: new Date().toLocaleTimeString('en-US', { hour12: false }), status: 'CheckedIn' });
@@ -182,18 +219,32 @@ const Timesheet = () => {
               </button>
             </>
           ) : (
-            <button 
-              className="transition-colors"
-              style={{
-                padding: '1rem 1.5rem',
-                fontWeight: activeTab === 'my_shifts' ? '600' : '500',
-                color: activeTab === 'my_shifts' ? 'var(--primary)' : 'var(--text-muted)',
-                borderBottom: activeTab === 'my_shifts' ? '2px solid var(--primary)' : '2px solid transparent',
-              }}
-              onClick={() => setActiveTab('my_shifts')}
-            >
-              Ca làm việc của tôi
-            </button>
+            <>
+              <button 
+                className="transition-colors"
+                style={{
+                  padding: '1rem 1.5rem',
+                  fontWeight: activeTab === 'my_shifts' ? '600' : '500',
+                  color: activeTab === 'my_shifts' ? 'var(--primary)' : 'var(--text-muted)',
+                  borderBottom: activeTab === 'my_shifts' ? '2px solid var(--primary)' : '2px solid transparent',
+                }}
+                onClick={() => setActiveTab('my_shifts')}
+              >
+                Ca làm việc của tôi
+              </button>
+              <button 
+                className="transition-colors"
+                style={{
+                  padding: '1rem 1.5rem',
+                  fontWeight: activeTab === 'my_salary' ? '600' : '500',
+                  color: activeTab === 'my_salary' ? 'var(--primary)' : 'var(--text-muted)',
+                  borderBottom: activeTab === 'my_salary' ? '2px solid var(--primary)' : '2px solid transparent',
+                }}
+                onClick={() => setActiveTab('my_salary')}
+              >
+                Lương theo tháng
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -220,7 +271,39 @@ const Timesheet = () => {
         </div>
       )}
 
-      {(activeTab === 'history' || activeTab === 'my_shifts') && (
+      {activeTab === 'my_salary' && !isAdmin && (
+        <div className="card">
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tháng/Năm</th>
+                  <th>Số giờ làm</th>
+                  <th>Đơn giá</th>
+                  <th>Thành tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                {getMonthlySalaryData(user.id).map((data, idx) => (
+                  <tr key={idx}>
+                    <td className="font-bold">Tháng {data.monthYear}</td>
+                    <td>{data.totalHours.toFixed(1)} giờ</td>
+                    <td>{user.salaryType === 'fulltime' ? '--' : `${user.salaryRate?.toLocaleString()} đ/giờ`}</td>
+                    <td className="font-bold text-success" style={{ fontSize: '1.1rem' }}>{data.totalSalary.toLocaleString()} đ</td>
+                  </tr>
+                ))}
+                {getMonthlySalaryData(user.id).length === 0 && (
+                  <tr>
+                    <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>Chưa có dữ liệu lương.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'history' && isAdmin && (
         <div className="card">
           <div className="table-container">
             <table>
@@ -229,16 +312,15 @@ const Timesheet = () => {
                   <th>Ngày</th>
                   <th>Tên Ca</th>
                   <th>Khung giờ</th>
-                  {isAdmin && <th>Nhân viên</th>}
+                  <th>Nhân viên</th>
                   <th>Cơ sở</th>
                   <th>Giờ Check-in</th>
                   <th>Giờ Check-out</th>
                   <th>Trạng thái</th>
-                  {!isAdmin && <th>Thao tác</th>}
                 </tr>
               </thead>
               <tbody>
-                {shifts.filter(s => isAdmin ? true : s.staffId === user.id).sort((a,b) => new Date(b.date) - new Date(a.date)).map(shift => {
+                {shifts.sort((a,b) => new Date(b.date) - new Date(a.date)).map(shift => {
                   const staff = users.find(u => u.id === shift.staffId);
                   const branch = branches.find(b => b.id === shift.branchId);
                   return (
@@ -246,7 +328,7 @@ const Timesheet = () => {
                       <td className="font-semibold">{new Date(shift.date).toLocaleDateString('vi-VN')}</td>
                       <td className="font-medium text-primary">{shift.shiftName || 'Ca tự do'}</td>
                       <td>{shift.startTime} - {shift.endTime}</td>
-                      {isAdmin && <td>{staff?.name || 'Không rõ'}</td>}
+                      <td>{staff?.name || 'Không rõ'}</td>
                       <td>{branch?.name || 'Không rõ'}</td>
                       <td className={shift.actualStartTime ? 'text-success font-medium' : 'text-muted'}>{shift.actualStartTime || '--:--'}</td>
                       <td className={shift.actualEndTime ? 'text-success font-medium' : 'text-muted'}>{shift.actualEndTime || '--:--'}</td>
@@ -255,19 +337,63 @@ const Timesheet = () => {
                           {shift.status === 'Completed' ? 'Đã hoàn thành' : shift.status === 'CheckedIn' ? 'Đang làm' : 'Chưa bắt đầu'}
                         </span>
                       </td>
-                      {!isAdmin && (
-                        <td>
-                          {shift.status === 'Pending' && <button className="btn btn-outline text-success border-success" onClick={() => doCheckInManual(shift.id)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}><CheckCircle size={14} /> Cập nhật Check In</button>}
-                          {shift.status === 'CheckedIn' && <button className="btn btn-outline text-danger border-danger" onClick={() => handleCheckOut(shift.id)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}><XCircle size={14} /> Check Out</button>}
-                          {shift.status === 'Completed' && <span className="text-muted text-sm">Đã kết thúc</span>}
-                        </td>
-                      )}
                     </tr>
                   )
                 })}
-                {shifts.filter(s => isAdmin ? true : s.staffId === user.id).length === 0 && (
+                {shifts.length === 0 && (
                   <tr>
-                    <td colSpan={isAdmin ? 8 : 8} style={{ textAlign: 'center', padding: '2rem' }}>Chưa có lịch sử chấm công nào.</td>
+                    <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>Chưa có lịch sử chấm công nào.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'my_shifts' && !isAdmin && (
+        <div className="card">
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ngày</th>
+                  <th>Tên Ca</th>
+                  <th>Khung giờ</th>
+                  <th>Cơ sở</th>
+                  <th>Giờ Check-in</th>
+                  <th>Giờ Check-out</th>
+                  <th>Trạng thái</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shifts.filter(s => s.staffId === user.id).sort((a,b) => new Date(b.date) - new Date(a.date)).map(shift => {
+                  const branch = branches.find(b => b.id === shift.branchId);
+                  return (
+                    <tr key={shift.id}>
+                      <td className="font-semibold">{new Date(shift.date).toLocaleDateString('vi-VN')}</td>
+                      <td className="font-medium text-primary">{shift.shiftName || 'Ca tự do'}</td>
+                      <td>{shift.startTime} - {shift.endTime}</td>
+                      <td>{branch?.name || 'Không rõ'}</td>
+                      <td className={shift.actualStartTime ? 'text-success font-medium' : 'text-muted'}>{shift.actualStartTime || '--:--'}</td>
+                      <td className={shift.actualEndTime ? 'text-success font-medium' : 'text-muted'}>{shift.actualEndTime || '--:--'}</td>
+                      <td>
+                        <span className={`badge ${shift.status === 'Completed' ? 'badge-success' : shift.status === 'CheckedIn' ? 'badge-warning' : 'badge-primary'}`}>
+                          {shift.status === 'Completed' ? 'Đã hoàn thành' : shift.status === 'CheckedIn' ? 'Đang làm' : 'Chưa bắt đầu'}
+                        </span>
+                      </td>
+                      <td>
+                        {shift.status === 'Pending' && <button className="btn btn-outline text-success border-success" onClick={() => doCheckInManual(shift.id)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}><CheckCircle size={14} /> Cập nhật Check In</button>}
+                        {shift.status === 'CheckedIn' && <button className="btn btn-outline text-danger border-danger" onClick={() => handleCheckOut(shift.id)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}><XCircle size={14} /> Check Out</button>}
+                        {shift.status === 'Completed' && <span className="text-muted text-sm">Đã kết thúc</span>}
+                      </td>
+                    </tr>
+                  )
+                })}
+                {shifts.filter(s => s.staffId === user.id).length === 0 && (
+                  <tr>
+                    <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>Chưa có lịch sử chấm công nào.</td>
                   </tr>
                 )}
               </tbody>
@@ -306,10 +432,9 @@ const Timesheet = () => {
         </div>
       )}
 
-      {/* ADMIN MODAL: TẠO KHUNG GIỜ CA MẪU */}
       {showTemplateModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div className="card" style={{ width: '100%', maxWidth: '400px' }}>
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
             <h3 className="mb-4">Tạo Khung giờ Ca mẫu</h3>
             <form onSubmit={handleSaveTemplate}>
               <div className="input-group">
@@ -335,10 +460,9 @@ const Timesheet = () => {
         </div>
       )}
 
-      {/* STAFF MODAL: BẮT ĐẦU CA (CHECK IN) */}
       {showCheckInModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div className="card" style={{ width: '100%', maxWidth: '400px' }}>
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
             <h3 className="mb-4">Bắt đầu Ca làm việc (Check In)</h3>
             <form onSubmit={handleStaffCheckIn}>
               <div className="input-group">

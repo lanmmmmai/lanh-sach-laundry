@@ -136,8 +136,8 @@ const Branches = () => {
       </div>
 
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div className="card" style={{ width: '100%', maxWidth: '500px' }}>
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '500px' }}>
             <h3 className="mb-4">{editingId ? 'Sửa Cơ sở' : 'Thêm Cơ sở mới'}</h3>
             <form onSubmit={handleSaveBranch}>
               <div className="input-group">
