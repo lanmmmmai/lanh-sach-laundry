@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { Calendar, Clock, DollarSign, Plus, CheckCircle, XCircle, Trash2, Download } from 'lucide-react';
+import { Calendar, Clock, DollarSign, Plus, CheckCircle, XCircle, Trash2, Download, ChevronLeft, ChevronRight, Edit } from 'lucide-react';
+import { format, subMonths, addMonths } from 'date-fns';
 
 const Timesheet = () => {
   const { user, users } = useAuth();
@@ -14,6 +15,10 @@ const Timesheet = () => {
 
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [checkInData, setCheckInData] = useState({ shiftTemplateId: '', branchId: '' });
+
+  const [editingShift, setEditingShift] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [adminFilterMonth, setAdminFilterMonth] = useState(new Date());
 
   const staffList = users.filter(u => u.role === 'staff');
   const today = new Date().toISOString().split('T')[0];
@@ -159,6 +164,19 @@ const Timesheet = () => {
       <div className="flex justify-between items-center mb-6">
         <h2>{isAdmin ? 'Quản lý Chấm công & Lương' : 'Chấm công của tôi'}</h2>
         <div className="flex gap-2">
+          {isAdmin && activeTab === 'history' && (
+            <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-lg border shadow-sm mr-2">
+              <button className="p-1 hover:bg-slate-100 rounded" onClick={() => setAdminFilterMonth(subMonths(adminFilterMonth, 1))}>
+                <ChevronLeft size={16} />
+              </button>
+              <span className="font-bold text-sm whitespace-nowrap">
+                Tháng {format(adminFilterMonth, 'MM/yyyy')}
+              </span>
+              <button className="p-1 hover:bg-slate-100 rounded" onClick={() => setAdminFilterMonth(addMonths(adminFilterMonth, 1))}>
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
           {(activeTab === 'history' || activeTab === 'salary' || activeTab === 'my_shifts') && (
             <button className="btn btn-outline" onClick={handleExport} style={{ color: 'var(--primary)', borderColor: 'var(--primary)' }}>
               <Download size={16} /> Xuất Excel
@@ -317,10 +335,17 @@ const Timesheet = () => {
                   <th>Giờ Check-in</th>
                   <th>Giờ Check-out</th>
                   <th>Trạng thái</th>
+                  <th>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {shifts.sort((a,b) => new Date(b.date) - new Date(a.date)).map(shift => {
+                {shifts
+                  .filter(s => {
+                    const d = new Date(s.date);
+                    return d.getMonth() === adminFilterMonth.getMonth() && d.getFullYear() === adminFilterMonth.getFullYear();
+                  })
+                  .sort((a,b) => new Date(b.date) - new Date(a.date))
+                  .map(shift => {
                   const staff = users.find(u => u.id === shift.staffId);
                   const branch = branches.find(b => b.id === shift.branchId);
                   return (
@@ -336,6 +361,16 @@ const Timesheet = () => {
                         <span className={`badge ${shift.status === 'Completed' ? 'badge-success' : shift.status === 'CheckedIn' ? 'badge-warning' : 'badge-primary'}`}>
                           {shift.status === 'Completed' ? 'Đã hoàn thành' : shift.status === 'CheckedIn' ? 'Đang làm' : 'Chưa bắt đầu'}
                         </span>
+                      </td>
+                      <td>
+                        <div className="flex gap-1">
+                          <button className="p-1 text-primary hover:bg-indigo-50 rounded" onClick={() => { setEditingShift(shift); setShowEditModal(true); }}>
+                            <Edit size={14} />
+                          </button>
+                          <button className="p-1 text-danger hover:bg-red-50 rounded" onClick={() => { if(window.confirm('Xóa bản ghi này?')) deleteShift(shift.id); }}>
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -486,6 +521,41 @@ const Timesheet = () => {
               <div className="flex justify-end gap-4 mt-6">
                 <button type="button" className="btn btn-outline" onClick={() => setShowCheckInModal(false)}>Hủy</button>
                 <button type="submit" className="btn btn-primary bg-success border-success">Bắt đầu làm (Check In)</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN MODAL: CHỈNH SỬA CHẤM CÔNG */}
+      {showEditModal && editingShift && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <h3 className="mb-4">Sửa bản ghi chấm công</h3>
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              updateShift(editingShift.id, editingShift);
+              setShowEditModal(false);
+            }}>
+              <div className="input-group">
+                <label className="input-label">Giờ Check-in thực tế</label>
+                <input type="time" step="1" className="input-field" value={editingShift.actualStartTime || ''} onChange={e => setEditingShift({...editingShift, actualStartTime: e.target.value})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Giờ Check-out thực tế</label>
+                <input type="time" step="1" className="input-field" value={editingShift.actualEndTime || ''} onChange={e => setEditingShift({...editingShift, actualEndTime: e.target.value})} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Trạng thái</label>
+                <select className="input-field" value={editingShift.status} onChange={e => setEditingShift({...editingShift, status: e.target.value})}>
+                  <option value="Pending">Chưa bắt đầu</option>
+                  <option value="CheckedIn">Đang làm</option>
+                  <option value="Completed">Đã hoàn thành</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-4 mt-6">
+                <button type="button" className="btn btn-outline" onClick={() => setShowEditModal(false)}>Hủy</button>
+                <button type="submit" className="btn btn-primary">Lưu thay đổi</button>
               </div>
             </form>
           </div>

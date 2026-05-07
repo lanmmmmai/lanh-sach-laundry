@@ -265,7 +265,8 @@ const Orders = () => {
                   setEditingOrder({
                     ...editingOrder, 
                     paymentStatus: newStatus,
-                    paymentMethod: newStatus === 'Đã thanh toán' ? (editingOrder.paymentMethod && editingOrder.paymentMethod !== '-' ? editingOrder.paymentMethod : 'Tiền mặt') : '-'
+                    paymentMethod: newStatus === 'Đã thanh toán' ? (editingOrder.paymentMethod && editingOrder.paymentMethod !== '-' ? editingOrder.paymentMethod : 'Tiền mặt') : '-',
+                    paidAt: newStatus === 'Đã thanh toán' ? new Date().toISOString() : editingOrder.paidAt
                   });
                 }}>
                   <option value="Chưa thanh toán">Chưa thanh toán</option>
@@ -294,6 +295,7 @@ const Orders = () => {
                   if (newStatus === 'Đã giao khách' && editingOrder.paymentStatus === 'Chưa thanh toán') {
                     updates.paymentStatus = 'Đã thanh toán';
                     updates.paymentMethod = 'Tiền mặt'; // Default to cash
+                    updates.paidAt = new Date().toISOString();
                   }
                   setEditingOrder({ ...editingOrder, ...updates });
                 }}>

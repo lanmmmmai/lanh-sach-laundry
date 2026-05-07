@@ -14,6 +14,7 @@ export const DataProvider = ({ children }) => {
   const [customers, setCustomers] = useState([]);
   const [shifts, setShifts] = useState([]);
   const [shiftTemplates, setShiftTemplates] = useState([]);
+  const [dailyReports, setDailyReports] = useState([]);
   const [notifications, setNotifications] = useState([]);
 
   const addNotification = (message) => {
@@ -28,13 +29,14 @@ export const DataProvider = ({ children }) => {
     if (!user) return;
     
     const fetchData = async () => {
-      const [{ data: b }, { data: o }, { data: s }, { data: c }, { data: sh }, { data: st }] = await Promise.all([
+      const [{ data: b }, { data: o }, { data: s }, { data: c }, { data: sh }, { data: st }, { data: dr }] = await Promise.all([
         supabase.from('branches').select('*').eq('adminId', adminId),
         supabase.from('orders').select('*').eq('adminId', adminId),
         supabase.from('services').select('*').eq('adminId', adminId),
         supabase.from('customers').select('*').eq('adminId', adminId),
         supabase.from('shifts').select('*').eq('adminId', adminId),
-        supabase.from('shift_templates').select('*').eq('adminId', adminId)
+        supabase.from('shift_templates').select('*').eq('adminId', adminId),
+        supabase.from('daily_reports').select('*').eq('adminId', adminId)
       ]);
       
       if (b) setBranches(b);
@@ -43,6 +45,7 @@ export const DataProvider = ({ children }) => {
       if (c) setCustomers(c);
       if (sh) setShifts(sh);
       if (st) setShiftTemplates(st);
+      if (dr) setDailyReports(dr);
     };
     
     fetchData();
@@ -212,6 +215,18 @@ export const DataProvider = ({ children }) => {
     if (!error) setShifts(shifts.filter(s => s.id !== id));
   };
 
+  const saveDailyReport = async (report) => {
+    // report matches table schema
+    const existing = dailyReports.find(r => r.branch_id === report.branch_id && r.report_date === report.report_date);
+    if (existing) {
+      const { error } = await supabase.from('daily_reports').update(report).eq('id', existing.id);
+      if (!error) setDailyReports(dailyReports.map(r => r.id === existing.id ? { ...r, ...report } : r));
+    } else {
+      const { data, error } = await supabase.from('daily_reports').insert([{ ...report, adminId }]).select().maybeSingle();
+      if (!error && data) setDailyReports([...dailyReports, data]);
+    }
+  };
+
   return (
     <DataContext.Provider value={{ 
       branches, addBranch, updateBranch, deleteBranch, importBranches,
@@ -220,6 +235,7 @@ export const DataProvider = ({ children }) => {
       customers, addCustomer,
       shifts, addShift, updateShift, deleteShift,
       shiftTemplates, addShiftTemplate, deleteShiftTemplate,
+      dailyReports, saveDailyReport,
       notifications, markNotificationsAsRead
     }}>
       {children}

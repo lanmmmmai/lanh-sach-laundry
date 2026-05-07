@@ -122,6 +122,7 @@ const CreateOrder = () => {
       totalPrice: total,
       paymentStatus: isPaid ? 'Đã thanh toán' : 'Chưa thanh toán',
       paymentMethod: isPaid ? paymentMethod : '-',
+      paidAt: isPaid ? new Date().toISOString() : null,
       status: 'Mới tạo',
       returnDate: new Date(returnDate).toISOString(),
       note

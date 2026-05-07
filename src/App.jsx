@@ -13,6 +13,7 @@ import Branches from './pages/Branches';
 import Services from './pages/Services';
 import Settings from './pages/Settings';
 import Timesheet from './pages/Timesheet';
+import DailyReports from './pages/DailyReports';
 
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
   const { user } = useAuth();
@@ -34,6 +35,7 @@ const AppRoutes = () => {
         <Route path="staff" element={<ProtectedRoute requireAdmin={true}><StaffManagement /></ProtectedRoute>} />
         <Route path="branches" element={<ProtectedRoute requireAdmin={true}><Branches /></ProtectedRoute>} />
         <Route path="timesheet" element={<Timesheet />} />
+        <Route path="daily-reports" element={<DailyReports />} />
         <Route path="settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
