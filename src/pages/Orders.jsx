@@ -21,11 +21,13 @@ const Orders = () => {
   
   const visibleOrders = isMainAdmin ? orders : orders.filter(o => !o.isHidden);
 
-  const filteredOrders = visibleOrders.filter(order => 
-    order.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.customerPhone.includes(searchTerm)
-  );
+  const filteredOrders = visibleOrders
+    .filter(order => 
+      order.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.customerPhone.includes(searchTerm)
+    )
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   const totalPages = Math.ceil(filteredOrders.length / rowsPerPage);
   const paginatedOrders = filteredOrders.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
