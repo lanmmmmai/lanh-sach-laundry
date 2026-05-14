@@ -1,24 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Save, Edit, FileText, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, Edit } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, addMonths, subMonths } from 'date-fns';
-import { vi } from 'date-fns/locale';
 
 const DailyReports = () => {
-  const { user } = useAuth();
+  const { user, users } = useAuth();
   const { orders, branches, dailyReports, saveDailyReport } = useData();
   const isAdmin = user?.role === 'admin';
   
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedBranchId, setSelectedBranchId] = useState(null);
+  const [selectedEmployeeName, setSelectedEmployeeName] = useState('');
   const [editingDay, setEditingDay] = useState(null);
   const [editData, setEditData] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState({ text: '', type: '' });
 
   useEffect(() => {
     if (branches.length > 0 && !selectedBranchId) {
       if (!isAdmin) {
-        // Find branch for staff - maybe from shift or assigned
         setSelectedBranchId(branches[0].id);
       } else {
         setSelectedBranchId(branches[0].id);
@@ -39,7 +40,10 @@ const DailyReports = () => {
     const manual = dailyReports.find(r => r.branch_id === branchId && r.report_date === dateStr) || {};
     
     // Auto data from orders
-    const dayOrders = orders.filter(o => o.branchId === branchId && o.createdAt && isSameDay(parseISO(o.createdAt), date));
+    let dayOrders = orders.filter(o => o.branchId === branchId && o.createdAt && isSameDay(parseISO(o.createdAt), date));
+    if (selectedEmployeeName) {
+      dayOrders = dayOrders.filter(o => o.staff === selectedEmployeeName);
+    }
     
     const nhanDon = {
       count: dayOrders.length,
@@ -48,19 +52,20 @@ const DailyReports = () => {
       no: dayOrders.filter(o => o.paymentStatus === 'Chưa thanh toán').reduce((sum, o) => sum + (o.totalPrice || 0), 0),
     };
 
-    // Thu nợ: Orders created before this day but paid on this day
-    // Need paidAt field. If not present, we can't accurately track. 
-    // For now, let's assume we use updatedOrder to set paidAt.
+    let thuNoOrders = orders.filter(o => o.branchId === branchId && o.paidAt && isSameDay(parseISO(o.paidAt), date) && !isSameDay(parseISO(o.createdAt), date));
+    if (selectedEmployeeName) {
+      thuNoOrders = thuNoOrders.filter(o => o.staff === selectedEmployeeName);
+    }
+
     const thuNo = {
-      count: orders.filter(o => o.branchId === branchId && o.paidAt && isSameDay(parseISO(o.paidAt), date) && !isSameDay(parseISO(o.createdAt), date)).length,
-      tm: orders.filter(o => o.branchId === branchId && o.paidAt && isSameDay(parseISO(o.paidAt), date) && !isSameDay(parseISO(o.createdAt), date) && o.paymentMethod === 'Tiền mặt').reduce((sum, o) => sum + (o.totalPrice || 0), 0),
-      ck: orders.filter(o => o.branchId === branchId && o.paidAt && isSameDay(parseISO(o.paidAt), date) && !isSameDay(parseISO(o.createdAt), date) && o.paymentMethod === 'Chuyển khoản').reduce((sum, o) => sum + (o.totalPrice || 0), 0),
+      count: thuNoOrders.length,
+      tm: thuNoOrders.filter(o => o.paymentMethod === 'Tiền mặt').reduce((sum, o) => sum + (o.totalPrice || 0), 0),
+      ck: thuNoOrders.filter(o => o.paymentMethod === 'Chuyển khoản').reduce((sum, o) => sum + (o.totalPrice || 0), 0),
     };
 
     const totalRev = nhanDon.tm + nhanDon.ck + nhanDon.no;
     const totalCollection = thuNo.tm + thuNo.ck;
     
-    // Calc total in shop: (Opening + TM Received + TM Collected - Expenses)
     const opening = manual.opening_balance || 0;
     const expenses = manual.expense_amount || 0;
     const closing = opening + nhanDon.tm + thuNo.tm - expenses;
@@ -79,6 +84,16 @@ const DailyReports = () => {
     };
   };
 
+  const reportDataList = [];
+  let cumulativeRev = 0;
+  
+  days.forEach(date => {
+    const data = getReportDataForDay(date);
+    data.cumulativeRev = cumulativeRev;
+    cumulativeRev += data.dayRev;
+    reportDataList.push({ date, data });
+  });
+
   const handleEdit = (dayData) => {
     setEditingDay(dayData.dateStr);
     setEditData({
@@ -87,26 +102,42 @@ const DailyReports = () => {
       expense_desc: dayData.expenseDesc,
       notes: dayData.notes
     });
+    setSaveMessage({ text: '', type: '' });
   };
 
   const handleSave = async () => {
-    await saveDailyReport({
-      branch_id: parseInt(selectedBranchId),
-      report_date: editingDay,
-      ...editData
-    });
-    setEditingDay(null);
+    setIsSaving(true);
+    setSaveMessage({ text: 'Đang lưu...', type: 'info' });
+    try {
+      await saveDailyReport({
+        branch_id: parseInt(selectedBranchId),
+        report_date: editingDay,
+        ...editData
+      });
+      setSaveMessage({ text: 'Lưu thành công!', type: 'success' });
+      setTimeout(() => setSaveMessage({ text: '', type: '' }), 3000);
+      setEditingDay(null);
+    } catch (err) {
+      setSaveMessage({ text: 'Lỗi khi lưu báo cáo.', type: 'error' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <div className="daily-reports">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="mb-1">Báo cáo doanh thu chi tiết</h2>
+          <h2 className="mb-1">Báo cáo doanh thu</h2>
           <p className="text-muted text-sm">Theo dõi thu chi và doanh số hàng ngày</p>
         </div>
         
         <div className="flex gap-4 items-center">
+          {saveMessage.text && (
+            <div className={`px-3 py-1 rounded text-sm ${saveMessage.type === 'error' ? 'bg-red-100 text-red-600' : saveMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-600'}`}>
+              {saveMessage.text}
+            </div>
+          )}
           <div className="flex items-center gap-2 bg-white p-1 rounded-lg border shadow-sm">
             <button className="p-2 hover:bg-slate-100 rounded-md" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
               <ChevronLeft size={20} />
@@ -127,6 +158,15 @@ const DailyReports = () => {
           >
             {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
+          
+          <select 
+            className="input-field w-[200px]" 
+            value={selectedEmployeeName} 
+            onChange={(e) => setSelectedEmployeeName(e.target.value)}
+          >
+            <option value="">Tất cả nhân viên</option>
+            {users.filter(u => isAdmin || u.id === user.id).map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
+          </select>
         </div>
       </div>
 
@@ -137,7 +177,7 @@ const DailyReports = () => {
               <tr className="bg-slate-50">
                 <th rowSpan="2" className="text-center">STT</th>
                 <th rowSpan="2">Ngày</th>
-                <th colSpan="2" className="text-center bg-yellow-50">Đầu kỳ & Doanh thu</th>
+                <th colSpan="3" className="text-center bg-yellow-50">Đầu kỳ & Doanh thu</th>
                 <th colSpan="4" className="text-center bg-blue-50">Nhận đơn</th>
                 <th colSpan="4" className="text-center bg-green-50">Thu nợ</th>
                 <th colSpan="2" className="text-center">Phát sinh</th>
@@ -147,12 +187,13 @@ const DailyReports = () => {
               </tr>
               <tr className="bg-slate-50">
                 <th className="bg-yellow-50">Đầu kỳ</th>
-                <th className="bg-yellow-50">DT ngày</th>
+                <th className="bg-yellow-50">DT lũy kế</th>
+                <th className="bg-yellow-50">DT ngày báo cáo</th>
                 <th className="bg-blue-50">Số HD</th>
                 <th className="bg-blue-50">CK</th>
                 <th className="bg-blue-50">TM</th>
                 <th className="bg-blue-50">Nợ</th>
-                <th className="bg-green-50">Tổng thu</th>
+                <th className="bg-green-50">Tổng thu nợ</th>
                 <th className="bg-green-50">Số HD</th>
                 <th className="bg-green-50">CK</th>
                 <th className="bg-green-50">TM</th>
@@ -161,8 +202,7 @@ const DailyReports = () => {
               </tr>
             </thead>
             <tbody>
-              {days.map((date, idx) => {
-                const data = getReportDataForDay(date);
+              {reportDataList.map(({ date, data }, idx) => {
                 const isEditing = editingDay === data.dateStr;
 
                 return (
@@ -182,6 +222,11 @@ const DailyReports = () => {
                           onChange={(e) => setEditData({...editData, opening_balance: parseInt(e.target.value) || 0})}
                         />
                       ) : data.opening.toLocaleString()}
+                    </td>
+
+                    {/* Day Cumulative Revenue */}
+                    <td className="text-right bg-yellow-50/50 font-medium text-slate-700">
+                      {data.cumulativeRev.toLocaleString()}
                     </td>
 
                     {/* Day Revenue */}
@@ -216,7 +261,7 @@ const DailyReports = () => {
                       {isEditing ? (
                         <input 
                           type="text" 
-                          className="w-full p-1 border rounded" 
+                          className="w-full p-1 border rounded min-w-[120px]" 
                           value={editData.expense_desc} 
                           onChange={(e) => setEditData({...editData, expense_desc: e.target.value})}
                         />
@@ -228,7 +273,7 @@ const DailyReports = () => {
                       {isEditing ? (
                         <input 
                           type="text" 
-                          className="w-full p-1 border rounded" 
+                          className="w-full p-1 border rounded min-w-[120px]" 
                           value={editData.notes} 
                           onChange={(e) => setEditData({...editData, notes: e.target.value})}
                         />
@@ -242,7 +287,7 @@ const DailyReports = () => {
 
                     <td className="text-center">
                       {isEditing ? (
-                        <button className="p-1 text-success hover:bg-success/10 rounded" onClick={handleSave}>
+                        <button className="p-1 text-success hover:bg-success/10 rounded" onClick={handleSave} disabled={isSaving}>
                           <CheckCircle size={18} />
                         </button>
                       ) : (

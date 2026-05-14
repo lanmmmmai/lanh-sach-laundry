@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, ShoppingCart, PlusCircle, Users, Settings, Waves, Building2, List, Calendar } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, PlusCircle, Users, Settings, Waves, Building2, List, Calendar, FileText } from 'lucide-react';
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const { user } = useAuth();
