@@ -6,7 +6,7 @@ import { format, subMonths, addMonths } from 'date-fns';
 
 const Timesheet = () => {
   const { user, users } = useAuth();
-  const { branches, shifts, addShift, updateShift, shiftTemplates, addShiftTemplate, deleteShiftTemplate } = useData();
+  const { branches, shifts, addShift, updateShift, deleteShift, shiftTemplates, addShiftTemplate, deleteShiftTemplate } = useData();
   const isAdmin = user?.role === 'admin';
   const [activeTab, setActiveTab] = useState(isAdmin ? 'templates' : 'my_shifts');
   
