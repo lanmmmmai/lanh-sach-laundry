@@ -1,4 +1,3 @@
-import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { DollarSign, ShoppingBag, Clock, CheckCircle, TrendingUp, Calendar, FileDown } from 'lucide-react';

@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { ChevronLeft, ChevronRight, CheckCircle, Edit } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, Edit, Download, Upload, FileDown } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, addMonths, subMonths } from 'date-fns';
+import * as XLSX from 'xlsx';
+import { exportToExcel } from '../utils/excelExport';
 
 const DailyReports = () => {
   const { user, users } = useAuth();
-  const { orders, branches, dailyReports, saveDailyReport } = useData();
+  const { orders, branches, dailyReports, saveDailyReport, importDailyReports } = useData();
   const isAdmin = user?.role === 'admin';
+  const fileInputRef = useRef(null);
   
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedBranchId, setSelectedBranchId] = useState(null);
@@ -19,13 +22,9 @@ const DailyReports = () => {
 
   useEffect(() => {
     if (branches.length > 0 && !selectedBranchId) {
-      if (!isAdmin) {
-        setSelectedBranchId(branches[0].id);
-      } else {
-        setSelectedBranchId(branches[0].id);
-      }
+      setSelectedBranchId(branches[0].id);
     }
-  }, [branches, selectedBranchId, isAdmin]);
+  }, [branches, selectedBranchId]);
 
   const days = eachDayOfInterval({
     start: startOfMonth(currentMonth),
@@ -36,10 +35,8 @@ const DailyReports = () => {
     const dateStr = format(date, 'yyyy-MM-dd');
     const branchId = parseInt(selectedBranchId);
     
-    // Manual data
     const manual = dailyReports.find(r => r.branch_id === branchId && r.report_date === dateStr) || {};
     
-    // Auto data from orders
     let dayOrders = orders.filter(o => o.branchId === branchId && o.createdAt && isSameDay(parseISO(o.createdAt), date));
     if (selectedEmployeeName) {
       dayOrders = dayOrders.filter(o => o.staff === selectedEmployeeName);
@@ -64,7 +61,6 @@ const DailyReports = () => {
     };
 
     const totalRev = nhanDon.tm + nhanDon.ck + nhanDon.no;
-    const totalCollection = thuNo.tm + thuNo.ck;
     
     const opening = manual.opening_balance || 0;
     const expenses = manual.expense_amount || 0;
@@ -76,7 +72,6 @@ const DailyReports = () => {
       dayRev: totalRev,
       nhanDon,
       thuNo,
-      totalCollection,
       expenses,
       expenseDesc: manual.expense_desc || '',
       notes: manual.notes || '',
@@ -93,6 +88,81 @@ const DailyReports = () => {
     cumulativeRev += data.dayRev;
     reportDataList.push({ date, data });
   });
+
+  const handleExport = () => {
+    const branchName = branches.find(b => b.id === parseInt(selectedBranchId))?.name || "Bao_Cao";
+    const monthStr = format(currentMonth, 'MM-yyyy');
+    
+    const exportData = reportDataList.map(({ date, data }, idx) => ({
+      "STT": idx + 1,
+      "Ngày": format(date, 'dd/MM/yyyy'),
+      "Đầu kỳ": data.opening,
+      "DT lũy kế": data.cumulativeRev,
+      "DT ngày báo cáo": data.dayRev,
+      "Nhận đơn - Số HD": data.nhanDon.count,
+      "Nhận đơn - CK": data.nhanDon.ck,
+      "Nhận đơn - TM": data.nhanDon.tm,
+      "Nhận đơn - Nợ": data.nhanDon.no,
+      "Thu nợ - Tổng": data.thuNo.tm + data.thuNo.ck,
+      "Thu nợ - CK": data.thuNo.ck,
+      "Thu nợ - TM": data.thuNo.tm,
+      "Phát sinh - Số tiền": data.expenses,
+      "Phát sinh - Diễn giải": data.expenseDesc,
+      "Ghi chú": data.notes,
+      "Tổng tại CH": data.closing
+    }));
+    
+    exportToExcel(exportData, `BaoCaoDoanhThu_${branchName}_${monthStr}`);
+  };
+
+  const downloadTemplate = () => {
+    const templateData = [
+      { 
+        "Ngày (YYYY-MM-DD)": format(new Date(), 'yyyy-MM-dd'), 
+        "Đầu kỳ": 1000000, 
+        "Phát sinh - Số tiền": 50000, 
+        "Phát sinh - Diễn giải": "Tiền điện nước",
+        "Ghi chú": "Ghi chú mẫu"
+      }
+    ];
+    exportToExcel(templateData, "Mau_Nhap_Bao_Cao_Doanh_Thu");
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = evt.target.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        
+        const updates = jsonData.map(item => ({
+          branch_id: parseInt(selectedBranchId),
+          report_date: item["Ngày (YYYY-MM-DD)"] || item["Ngay"],
+          opening_balance: parseInt(item["Đầu kỳ"] || item["Dau ky"] || 0),
+          expense_amount: parseInt(item["Phát sinh - Số tiền"] || item["Phat sinh"] || 0),
+          expense_desc: item["Phát sinh - Diễn giải"] || item["Dien giai"] || "",
+          notes: item["Ghi chú"] || item["Ghi chu"] || ""
+        })).filter(u => u.report_date);
+        
+        if (updates.length > 0) {
+          importDailyReports(updates).then(() => {
+            setSaveMessage({ text: `Đã nhập ${updates.length} ngày thành công!`, type: 'success' });
+            setTimeout(() => setSaveMessage({ text: '', type: '' }), 3000);
+          });
+        }
+      } catch (err) {
+        console.error(err);
+        setSaveMessage({ text: 'Lỗi khi đọc file Excel.', type: 'error' });
+      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    reader.readAsBinaryString(file);
+  };
 
   const handleEdit = (dayData) => {
     setEditingDay(dayData.dateStr);
@@ -133,11 +203,29 @@ const DailyReports = () => {
         </div>
         
         <div className="flex gap-4 items-center">
+          <div className="flex items-center gap-2">
+            <button className="btn btn-outline" onClick={handleExport} style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
+              <FileDown size={16} /> Xuất Excel
+            </button>
+            {isAdmin && (
+              <>
+                <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()} style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}>
+                  <Upload size={16} /> Nhập Excel
+                </button>
+                <button className="btn btn-outline" onClick={downloadTemplate} title="Tải file mẫu" style={{ padding: '0.4rem' }}>
+                  <Download size={16} />
+                </button>
+                <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx, .xls" style={{ display: 'none' }} />
+              </>
+            )}
+          </div>
+
           {saveMessage.text && (
             <div className={`px-3 py-1 rounded text-sm ${saveMessage.type === 'error' ? 'bg-red-100 text-red-600' : saveMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-600'}`}>
               {saveMessage.text}
             </div>
           )}
+          
           <div className="flex items-center gap-2 bg-white p-1 rounded-lg border shadow-sm">
             <button className="p-2 hover:bg-slate-100 rounded-md" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
               <ChevronLeft size={20} />
@@ -150,20 +238,11 @@ const DailyReports = () => {
             </button>
           </div>
 
-          <select 
-            className="input-field w-[200px]" 
-            value={selectedBranchId || ''} 
-            onChange={(e) => setSelectedBranchId(e.target.value)}
-            disabled={!isAdmin}
-          >
+          <select className="input-field w-[180px]" value={selectedBranchId || ''} onChange={(e) => setSelectedBranchId(e.target.value)} disabled={!isAdmin}>
             {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
           
-          <select 
-            className="input-field w-[200px]" 
-            value={selectedEmployeeName} 
-            onChange={(e) => setSelectedEmployeeName(e.target.value)}
-          >
+          <select className="input-field w-[180px]" value={selectedEmployeeName} onChange={(e) => setSelectedEmployeeName(e.target.value)}>
             <option value="">Tất cả nhân viên</option>
             {users.filter(u => isAdmin || u.id === user.id).map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
           </select>
@@ -188,12 +267,12 @@ const DailyReports = () => {
               <tr className="bg-slate-50">
                 <th className="bg-yellow-50">Đầu kỳ</th>
                 <th className="bg-yellow-50">DT lũy kế</th>
-                <th className="bg-yellow-50">DT ngày báo cáo</th>
+                <th className="bg-yellow-50">DT ngày</th>
                 <th className="bg-blue-50">Số HD</th>
                 <th className="bg-blue-50">CK</th>
                 <th className="bg-blue-50">TM</th>
                 <th className="bg-blue-50">Nợ</th>
-                <th className="bg-green-50">Tổng thu nợ</th>
+                <th className="bg-green-50">Tổng thu</th>
                 <th className="bg-green-50">Số HD</th>
                 <th className="bg-green-50">CK</th>
                 <th className="bg-green-50">TM</th>
@@ -204,96 +283,46 @@ const DailyReports = () => {
             <tbody>
               {reportDataList.map(({ date, data }, idx) => {
                 const isEditing = editingDay === data.dateStr;
-
                 return (
                   <tr key={idx} className={isEditing ? 'bg-indigo-50' : ''}>
                     <td className="text-center text-muted text-xs">{idx + 1}</td>
-                    <td className="font-medium whitespace-nowrap">
-                      {format(date, 'dd/MM/yyyy')}
-                    </td>
-                    
-                    {/* Opening Balance */}
+                    <td className="font-medium whitespace-nowrap">{format(date, 'dd/MM/yyyy')}</td>
                     <td className="text-right font-semibold">
                       {isEditing ? (
-                        <input 
-                          type="number" 
-                          className="w-20 p-1 border rounded" 
-                          value={editData.opening_balance} 
-                          onChange={(e) => setEditData({...editData, opening_balance: parseInt(e.target.value) || 0})}
-                        />
+                        <input type="number" className="w-20 p-1 border rounded" value={editData.opening_balance} onChange={(e) => setEditData({...editData, opening_balance: parseInt(e.target.value) || 0})} />
                       ) : data.opening.toLocaleString()}
                     </td>
-
-                    {/* Day Cumulative Revenue */}
-                    <td className="text-right bg-yellow-50/50 font-medium text-slate-700">
-                      {data.cumulativeRev.toLocaleString()}
-                    </td>
-
-                    {/* Day Revenue */}
-                    <td className="text-right bg-yellow-50 font-bold text-orange-600">
-                      {data.dayRev.toLocaleString()}
-                    </td>
-
-                    {/* Nhận đơn */}
+                    <td className="text-right bg-yellow-50/50 text-slate-700">{data.cumulativeRev.toLocaleString()}</td>
+                    <td className="text-right bg-yellow-50 font-bold text-orange-600">{data.dayRev.toLocaleString()}</td>
                     <td className="text-center bg-blue-50/30">{data.nhanDon.count}</td>
                     <td className="text-right bg-blue-50/30">{data.nhanDon.ck.toLocaleString()}</td>
                     <td className="text-right bg-blue-50/30">{data.nhanDon.tm.toLocaleString()}</td>
                     <td className="text-right bg-blue-50/30 text-red-500">{data.nhanDon.no.toLocaleString()}</td>
-
-                    {/* Thu nợ */}
-                    <td className="text-right bg-green-50/30 font-bold text-green-700">{data.totalCollection.toLocaleString()}</td>
+                    <td className="text-right bg-green-50/30 font-bold text-green-700">{(data.thuNo.tm + data.thuNo.ck).toLocaleString()}</td>
                     <td className="text-center bg-green-50/30">{data.thuNo.count}</td>
                     <td className="text-right bg-green-50/30">{data.thuNo.ck.toLocaleString()}</td>
                     <td className="text-right bg-green-50/30">{data.thuNo.tm.toLocaleString()}</td>
-
-                    {/* Phát sinh */}
                     <td className="text-right">
                       {isEditing ? (
-                        <input 
-                          type="number" 
-                          className="w-20 p-1 border rounded" 
-                          value={editData.expense_amount} 
-                          onChange={(e) => setEditData({...editData, expense_amount: parseInt(e.target.value) || 0})}
-                        />
+                        <input type="number" className="w-20 p-1 border rounded" value={editData.expense_amount} onChange={(e) => setEditData({...editData, expense_amount: parseInt(e.target.value) || 0})} />
                       ) : data.expenses.toLocaleString()}
                     </td>
                     <td>
                       {isEditing ? (
-                        <input 
-                          type="text" 
-                          className="w-full p-1 border rounded min-w-[120px]" 
-                          value={editData.expense_desc} 
-                          onChange={(e) => setEditData({...editData, expense_desc: e.target.value})}
-                        />
+                        <input type="text" className="w-full p-1 border rounded min-w-[120px]" value={editData.expense_desc} onChange={(e) => setEditData({...editData, expense_desc: e.target.value})} />
                       ) : data.expenseDesc}
                     </td>
-
-                    {/* Ghi chú */}
                     <td>
                       {isEditing ? (
-                        <input 
-                          type="text" 
-                          className="w-full p-1 border rounded min-w-[120px]" 
-                          value={editData.notes} 
-                          onChange={(e) => setEditData({...editData, notes: e.target.value})}
-                        />
+                        <input type="text" className="w-full p-1 border rounded min-w-[120px]" value={editData.notes} onChange={(e) => setEditData({...editData, notes: e.target.value})} />
                       ) : data.notes}
                     </td>
-
-                    {/* Closing Balance */}
-                    <td className="text-right bg-blue-600 text-white font-bold">
-                      {data.closing.toLocaleString()}
-                    </td>
-
+                    <td className="text-right bg-blue-600 text-white font-bold">{data.closing.toLocaleString()}</td>
                     <td className="text-center">
                       {isEditing ? (
-                        <button className="p-1 text-success hover:bg-success/10 rounded" onClick={handleSave} disabled={isSaving}>
-                          <CheckCircle size={18} />
-                        </button>
+                        <button className="p-1 text-success hover:bg-success/10 rounded" onClick={handleSave} disabled={isSaving}><CheckCircle size={18} /></button>
                       ) : (
-                        <button className="p-1 text-primary hover:bg-primary/10 rounded" onClick={() => handleEdit(data)}>
-                          <Edit size={18} />
-                        </button>
+                        <button className="p-1 text-primary hover:bg-primary/10 rounded" onClick={() => handleEdit(data)}><Edit size={18} /></button>
                       )}
                     </td>
                   </tr>
@@ -305,16 +334,8 @@ const DailyReports = () => {
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
-        .report-table th {
-          border: 1px solid #e2e8f0;
-          font-size: 11px;
-          padding: 8px 4px;
-        }
-        .report-table td {
-          border: 1px solid #e2e8f0;
-          font-size: 12px;
-          padding: 6px 8px;
-        }
+        .report-table th { border: 1px solid #e2e8f0; font-size: 11px; padding: 8px 4px; }
+        .report-table td { border: 1px solid #e2e8f0; font-size: 12px; padding: 6px 8px; }
         .bg-yellow-50 { background-color: #fefce8; }
         .bg-blue-50 { background-color: #eff6ff; }
         .bg-green-50 { background-color: #f0fdf4; }

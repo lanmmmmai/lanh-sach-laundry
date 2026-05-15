@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { Calendar, Clock, DollarSign, Plus, CheckCircle, XCircle, Trash2, Download, ChevronLeft, ChevronRight, Edit } from 'lucide-react';

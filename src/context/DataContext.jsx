@@ -219,12 +219,33 @@ export const DataProvider = ({ children }) => {
     // report matches table schema
     const existing = dailyReports.find(r => r.branch_id === report.branch_id && r.report_date === report.report_date);
     if (existing) {
-      const { error } = await supabase.from('daily_reports').update(report).eq('id', existing.id);
-      if (!error) setDailyReports(dailyReports.map(r => r.id === existing.id ? { ...r, ...report } : r));
+      const { data, error } = await supabase.from('daily_reports').update(report).eq('id', existing.id).select().maybeSingle();
+      if (error) { console.error("Update error:", error); throw new Error(error.message); }
+      if (data) setDailyReports(dailyReports.map(r => r.id === existing.id ? { ...r, ...report } : r));
     } else {
       const { data, error } = await supabase.from('daily_reports').insert([{ ...report, adminId }]).select().maybeSingle();
-      if (!error && data) setDailyReports([...dailyReports, data]);
+      if (error) { console.error("Insert error:", error); throw new Error(error.message); }
+      if (data) setDailyReports([...dailyReports, data]);
     }
+  };
+
+  const importDailyReports = async (newReports) => {
+    for (const r of newReports) {
+      const { data: existing } = await supabase.from('daily_reports')
+        .select('id')
+        .eq('branch_id', r.branch_id)
+        .eq('report_date', r.report_date)
+        .eq('adminId', adminId);
+      
+      const payload = { ...r, adminId };
+      if (existing && existing.length > 0) {
+        await supabase.from('daily_reports').update(payload).eq('id', existing[0].id);
+      } else {
+        await supabase.from('daily_reports').insert([payload]);
+      }
+    }
+    const { data } = await supabase.from('daily_reports').select('*').eq('adminId', adminId);
+    if (data) setDailyReports(data);
   };
 
   return (
@@ -235,7 +256,7 @@ export const DataProvider = ({ children }) => {
       customers, addCustomer,
       shifts, addShift, updateShift, deleteShift,
       shiftTemplates, addShiftTemplate, deleteShiftTemplate,
-      dailyReports, saveDailyReport,
+      dailyReports, saveDailyReport, importDailyReports,
       notifications, markNotificationsAsRead
     }}>
       {children}
